@@ -1,7 +1,7 @@
 plugins {
     java
     `java-library`
-    id("com.gradleup.shadow") version "9.0.0-beta17"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "dev.user"
