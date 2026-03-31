@@ -36,6 +36,10 @@ public class GachaMachine {
     // ICON NBT 组件配置
     private Map<String, String> iconComponents;
 
+    // 累抽自选配置
+    private final int milepostInterval; // 每 N 次抽奖获得 1 次自选，0=不启用
+    private final int milepostMaxPicks; // 每个玩家最多获得多少次自选，0=无限制
+
     private double totalProbability;
     private double pityTargetBaseProbability;
     private List<GachaReward> pityTargetRewards;
@@ -46,7 +50,7 @@ public class GachaMachine {
                         int animationDuration, int animationDurationTen, boolean broadcastRare, double broadcastThreshold, int slot,
                         boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability) {
         this(id, name, description, icon, cost, animationDuration, animationDurationTen, broadcastRare, broadcastThreshold, slot,
-            enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProbability, null, null);
+            enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProbability, null, null, 0, 0);
     }
 
     public GachaMachine(String id, String name, List<String> description, String icon, double cost,
@@ -54,13 +58,22 @@ public class GachaMachine {
                         boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability,
                         DisplayEntityConfig displayConfig) {
         this(id, name, description, icon, cost, animationDuration, animationDurationTen, broadcastRare, broadcastThreshold, slot,
-            enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProbability, displayConfig, null);
+            enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProbability, displayConfig, null, 0, 0);
     }
 
     public GachaMachine(String id, String name, List<String> description, String icon, double cost,
                         int animationDuration, int animationDurationTen, boolean broadcastRare, double broadcastThreshold, int slot,
                         boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability,
                         DisplayEntityConfig displayConfig, Map<String, String> iconComponents) {
+        this(id, name, description, icon, cost, animationDuration, animationDurationTen, broadcastRare, broadcastThreshold, slot,
+            enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProbability, displayConfig, iconComponents, 0, 0);
+    }
+
+    public GachaMachine(String id, String name, List<String> description, String icon, double cost,
+                        int animationDuration, int animationDurationTen, boolean broadcastRare, double broadcastThreshold, int slot,
+                        boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability,
+                        DisplayEntityConfig displayConfig, Map<String, String> iconComponents,
+                        int milepostInterval, int milepostMaxPicks) {
         this.id = id;
         this.name = name;
         this.description = description != null ? description : new ArrayList<>();
@@ -78,6 +91,8 @@ public class GachaMachine {
         this.pityTargetMaxProbability = pityTargetMaxProbability;
         this.displayConfig = displayConfig;
         this.iconComponents = iconComponents != null ? iconComponents : new HashMap<>();
+        this.milepostInterval = milepostInterval;
+        this.milepostMaxPicks = milepostMaxPicks;
         this.rewards = new ArrayList<>();
         this.pityTargetRewards = new ArrayList<>();
         this.nonPityRewards = new ArrayList<>();
@@ -321,4 +336,9 @@ public class GachaMachine {
     public boolean hasDisplayConfig() {
         return displayConfig != null;
     }
+
+    // 累抽自选 Getters
+    public int getMilepostInterval() { return milepostInterval; }
+    public int getMilepostMaxPicks() { return milepostMaxPicks; }
+    public boolean isMilepostEnabled() { return milepostInterval > 0; }
 }

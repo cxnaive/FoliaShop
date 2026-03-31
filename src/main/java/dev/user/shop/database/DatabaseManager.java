@@ -304,6 +304,9 @@ public class DatabaseManager {
             // 数据库迁移：添加缺失的 outdated 列
             migrateAddOutdatedColumn(conn);
 
+            // 数据库迁移：给 gacha_records 添加 source 列
+            migrateAddSourceColumn(conn);
+
             // 数据库迁移：软保底表结构迁移（从多段硬保底到单段软保底）
             migratePityTableToSoftPity(conn);
 
@@ -325,7 +328,8 @@ public class DatabaseManager {
             {"idx_gacha_timestamp", "gacha_records", "timestamp"},
             {"idx_pity_player", "gacha_pity", "player_uuid"},
             {"idx_block_world", "gacha_block_bindings", "world_uuid"},
-            {"idx_block_machine", "gacha_block_bindings", "machine_id"}
+            {"idx_block_machine", "gacha_block_bindings", "machine_id"},
+            {"idx_gacha_source", "gacha_records", "player_uuid, machine_id, source"}
         };
 
         for (String[] index : indexes) {
@@ -586,6 +590,31 @@ public class DatabaseManager {
             }
         } catch (SQLException e) {
             plugin.getLogger().warning("[数据库迁移] 添加 outdated 列失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 数据库迁移：给 gacha_records 添加 source 列
+     */
+    private void migrateAddSourceColumn(Connection conn) {
+        try {
+            DatabaseMetaData metaData = conn.getMetaData();
+            boolean columnExists = false;
+            try (ResultSet columns = metaData.getColumns(null, null, "GACHA_RECORDS", "SOURCE")) {
+                if (columns.next()) {
+                    columnExists = true;
+                }
+            }
+
+            if (!columnExists) {
+                plugin.getLogger().info("[数据库迁移] 正在添加 source 列到 gacha_records 表...");
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER TABLE gacha_records ADD COLUMN source VARCHAR(10) DEFAULT 'draw'");
+                    plugin.getLogger().info("[数据库迁移] source 列添加成功");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("[数据库迁移] 添加 source 列失败: " + e.getMessage());
         }
     }
 

@@ -87,6 +87,25 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 }
                 new dev.user.shop.gui.GachaMainGUI(plugin, player).open();
             }
+            case "pick" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
+                    return true;
+                }
+                if (!plugin.getShopConfig().isGachaEnabled()) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("feature-disabled"));
+                    return true;
+                }
+                if (!player.hasPermission("foliashop.gacha.use")) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("no-permission"));
+                    return true;
+                }
+                if (args.length < 2) {
+                    player.sendMessage("§c用法: /foliashop pick <扭蛋机ID>");
+                    return true;
+                }
+                handleGachaPick(player, args[1]);
+            }
             case "collect" -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
@@ -210,6 +229,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 completions.add("shop");
                 completions.add("gacha");
                 completions.add("collect");
+                completions.add("pick");
             }
             if (sender.hasPermission("foliashop.admin")) {
                 completions.add("reload");
@@ -240,6 +260,17 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 return plugin.getGachaManager().getAllCollections().stream()
                     .map(c -> c.getId())
                     .filter(id -> id.toLowerCase().startsWith(args[2].toLowerCase()))
+                    .toList();
+            }
+        }
+
+        // pick 命令的参数补全（扭蛋机ID）
+        if (args[0].equalsIgnoreCase("pick") && sender.hasPermission("foliashop.gacha.use")) {
+            if (args.length == 2) {
+                return plugin.getGachaManager().getEnabledMachines().stream()
+                    .filter(m -> m.isMilepostEnabled())
+                    .map(m -> m.getId())
+                    .filter(id -> id.toLowerCase().startsWith(args[1].toLowerCase()))
                     .toList();
             }
         }
@@ -783,6 +814,37 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             } else {
                 sender.sendMessage("§c✘ 导入失败，请查看控制台日志");
             }
+        });
+    }
+
+    /**
+     * 处理自选命令
+     */
+    private void handleGachaPick(Player player, String machineId) {
+        dev.user.shop.gacha.GachaMachine machine = plugin.getGachaManager().getMachine(machineId);
+        if (machine == null) {
+            player.sendMessage("§c扭蛋机 '" + machineId + "' 不存在");
+            return;
+        }
+        if (!machine.isEnabled()) {
+            player.sendMessage("§c扭蛋机 '" + machineId + "' 未启用");
+            return;
+        }
+        if (!machine.isMilepostEnabled()) {
+            player.sendMessage("§c扭蛋机 '" + machineId + "' 未启用累抽自选功能");
+            return;
+        }
+
+        plugin.getGachaManager().getMilepostProgress(player.getUniqueId(), machineId, info -> {
+            plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (!info.hasAvailable()) {
+                    player.sendMessage("§c自选次数不足，继续抽奖积攒次数吧！");
+                    player.sendMessage("§7当前进度: §e" + info.getTotalDraws() + "§7/§e" + info.getInterval() + " §7次 | 可用自选: §e" + info.getAvailablePicks());
+                    return;
+                }
+                new dev.user.shop.gui.GachaPickGUI(plugin, player, machine, info).open();
+            });
         });
     }
 }

@@ -2,6 +2,7 @@ package dev.user.shop.gui;
 
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.GachaMachine;
+import dev.user.shop.gacha.GachaManager;
 import dev.user.shop.util.ItemUtil;
 import dev.user.shop.util.MessageUtil;
 import org.bukkit.Material;
@@ -73,6 +74,11 @@ public class GachaMachineGUI extends AbstractGUI {
         ));
         setItem(15, tenRollBtn, this::startTenGacha);
 
+        // 累抽自选按钮（仅当启用时显示）
+        if (machine.isMilepostEnabled()) {
+            renderMilepostButton();
+        }
+
         // 历史记录按钮
         ItemStack historyBtn = new ItemStack(Material.CLOCK);
         ItemUtil.setDisplayName(historyBtn, "§7§l抽奖记录");
@@ -87,6 +93,59 @@ public class GachaMachineGUI extends AbstractGUI {
 
         // 返回按钮
         addBackButton(22, () -> new GachaMainGUI(plugin, player).open());
+    }
+
+    private void renderMilepostButton() {
+        // 先放一个占位按钮，异步加载完成后更新
+        ItemStack placeholder = new ItemStack(Material.ITEM_FRAME);
+        ItemUtil.setDisplayName(placeholder, "§7§l自选领取");
+        ItemUtil.setLore(placeholder, List.of("§7加载中..."));
+        setItem(20, placeholder, p -> p.sendMessage("§c正在加载，请稍候..."));
+
+        plugin.getGachaManager().getMilepostProgress(player.getUniqueId(), machine.getId(), info -> {
+            plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
+
+                ItemStack btn;
+                if (info.hasAvailable()) {
+                    btn = new ItemStack(Material.GLOW_ITEM_FRAME);
+                    ItemUtil.setDisplayName(btn, "§d§l自选领取");
+                } else {
+                    btn = new ItemStack(Material.ITEM_FRAME);
+                    ItemUtil.setDisplayName(btn, "§7§l自选领取");
+                }
+
+                List<String> lore = new ArrayList<>();
+                lore.add("§7累计抽奖: §e" + info.getTotalDraws() + " §7次");
+                lore.add("§7每 §e" + info.getInterval() + " §7次获得1次自选");
+                if (info.hasMaxPicks()) {
+                    lore.add("§7自选上限: §e" + info.getMaxPicks() + " §7次");
+                }
+                lore.add("§7已使用: §e" + info.getUsedPicks() + " §7次");
+                lore.add("§7可用次数: §e" + info.getAvailablePicks());
+                lore.add("");
+                if (info.hasAvailable()) {
+                    lore.add("§a§l点击选择奖品！");
+                } else if (info.hasMaxPicks() && info.getUsedPicks() >= info.getMaxPicks()) {
+                    lore.add("§c已达自选上限");
+                } else {
+                    int nextAt = info.getInterval() - (info.getTotalDraws() % info.getInterval());
+                    if (nextAt == info.getInterval()) nextAt = info.getInterval();
+                    lore.add("§7再抽 §e" + nextAt + " §7次可获得自选");
+                }
+
+                ItemUtil.setLore(btn, lore);
+
+                if (info.hasAvailable()) {
+                    setItem(20, btn, p -> {
+                        p.closeInventory();
+                        new GachaPickGUI(plugin, p, machine, info).open();
+                    });
+                } else {
+                    setItem(20, btn, p -> p.sendMessage("§7自选次数不足，继续抽奖积攒次数吧！"));
+                }
+            });
+        });
     }
 
     private void startGacha(Player player) {

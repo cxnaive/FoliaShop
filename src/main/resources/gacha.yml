@@ -104,6 +104,14 @@ machines:
     #   max: 90
     #   target-max-probability: 0.05
 
+    # 累抽自选配置（可选，不配置则不启用）
+    # 玩家累计抽奖达到指定次数后可获得自选机会，从奖品池中任选一个
+    # milepost-pick:
+    #   # 每多少次抽奖获得 1 次自选
+    #   interval: 50
+    #   # 每个玩家最多获得多少次自选（0 = 无限制）
+    #   max-picks: 5
+
     # 展示实体覆盖配置（可选）
     # 未设置的项将继承全局 display-entity 配置
     # display-entity:
@@ -221,6 +229,12 @@ machines:
       max: 90
       # 保底目标奖品的最大概率阈值（概率<=此值的奖品为保底目标）
       target-max-probability: 0.05
+
+    # 累抽自选配置
+    # 每 100 次抽奖获得 1 次自选，最多 10 次
+    milepost-pick:
+      interval: 100
+      max-picks: 10
 
     rewards:
       - id: "p_iron"

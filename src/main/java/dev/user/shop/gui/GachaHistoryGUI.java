@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemStack;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 public class GachaHistoryGUI extends AbstractGUI {
@@ -97,13 +98,16 @@ public class GachaHistoryGUI extends AbstractGUI {
         String machineName = MessageUtil.convertMiniMessageToLegacy(machineNameRaw);
 
         // 保持物品原始名称，只在lore中添加信息
-        ItemUtil.setLore(item, List.of(
-            "§7数量: §f" + record.getAmount() + " 个",
-            "§7时间: §f" + timeStr,
-            "§7扭蛋机: §f" + machineName,
-            "§7花费: §e" + plugin.getShopConfig().formatCurrency(record.getCost()),
-            "§7物品ID: §f" + record.getItemKey()
-        ));
+        List<String> lore = new ArrayList<>();
+        lore.add("§7数量: §f" + record.getAmount() + " 个");
+        lore.add("§7时间: §f" + timeStr);
+        lore.add("§7扭蛋机: §f" + machineName);
+        if (record.isPick()) {
+            lore.add("§7来源: §d累抽自选");
+        }
+        lore.add("§7花费: §e" + plugin.getShopConfig().formatCurrency(record.getCost()));
+        lore.add("§7物品ID: §f" + record.getItemKey());
+        ItemUtil.setLore(item, lore);
 
         return item;
     }

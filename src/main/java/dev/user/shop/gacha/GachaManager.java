@@ -74,10 +74,20 @@ public class GachaManager {
                 machineSection.get("icon-components")
             );
 
+            // 加载累抽自选配置
+            ConfigurationSection milepostSection = machineSection.getConfigurationSection("milepost-pick");
+            int milepostInterval = 0;
+            int milepostMaxPicks = 0;
+            if (milepostSection != null) {
+                milepostInterval = milepostSection.getInt("interval", 0);
+                milepostMaxPicks = milepostSection.getInt("max-picks", 0);
+            }
+
             GachaMachine machine = new GachaMachine(
                 machineId, name, description, icon, cost,
                 animationDuration, animationDurationTen, broadcastRare, broadcastThreshold, slot,
-                enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProb, displayConfig, iconComponents
+                enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProb,
+                displayConfig, iconComponents, milepostInterval, milepostMaxPicks
             );
 
             // 加载奖品
@@ -210,10 +220,18 @@ public class GachaManager {
      * 记录扭蛋抽奖
      */
     public void logGacha(UUID playerUuid, String playerName, String machineId, GachaReward reward, double cost) {
+        logGacha(playerUuid, playerName, machineId, reward, cost, "draw");
+    }
+
+    /**
+     * 记录扭蛋抽奖
+     * @param source 来源: "draw"=正常抽奖, "pick"=自选获得
+     */
+    public void logGacha(UUID playerUuid, String playerName, String machineId, GachaReward reward, double cost, String source) {
         plugin.getDatabaseQueue().submit("logGacha", conn -> {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO gacha_records (player_uuid, player_name, machine_id, reward_id, item_key, amount, cost, timestamp) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                    "INSERT INTO gacha_records (player_uuid, player_name, machine_id, reward_id, item_key, amount, cost, timestamp, source) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 ps.setString(1, playerUuid.toString());
                 ps.setString(2, playerName);
                 ps.setString(3, machineId);
@@ -222,6 +240,7 @@ public class GachaManager {
                 ps.setInt(6, reward.getAmount());
                 ps.setDouble(7, cost);
                 ps.setLong(8, System.currentTimeMillis());
+                ps.setString(9, source);
                 ps.executeUpdate();
             }
             return null;
@@ -307,11 +326,11 @@ public class GachaManager {
         plugin.getDatabaseQueue().submit("queryRewardHistories", conn -> {
             for (GachaReward reward : rewards) {
                 try {
-                    // 查询上次抽到该奖品的时间
+                    // 查询上次抽到该奖品的时间（仅正常抽奖记录）
                     Long lastTime = null;
                     try (PreparedStatement ps = conn.prepareStatement(
                             "SELECT timestamp FROM gacha_records " +
-                            "WHERE player_uuid = ? AND machine_id = ? AND reward_id = ? " +
+                            "WHERE player_uuid = ? AND machine_id = ? AND reward_id = ? AND source = 'draw' " +
                             "ORDER BY timestamp DESC, id DESC LIMIT 1")) {
                         ps.setString(1, playerUuid.toString());
                         ps.setString(2, machineId);
@@ -323,12 +342,12 @@ public class GachaManager {
                         }
                     }
 
-                    // 统计从那时到现在抽了多少次
+                    // 统计从那时到现在抽了多少次（仅正常抽奖记录）
                     if (lastTime == null) {
                         // 第一次抽到，查询总次数
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "SELECT COUNT(*) as count FROM gacha_records " +
-                                "WHERE player_uuid = ? AND machine_id = ?")) {
+                                "WHERE player_uuid = ? AND machine_id = ? AND source = 'draw'")) {
                             ps.setString(1, playerUuid.toString());
                             ps.setString(2, machineId);
                             try (ResultSet rs = ps.executeQuery()) {
@@ -338,10 +357,10 @@ public class GachaManager {
                             }
                         }
                     } else {
-                        // 有记录，统计间隔
+                        // 有记录，统计间隔（仅正常抽奖记录）
                         try (PreparedStatement ps = conn.prepareStatement(
                                 "SELECT COUNT(*) as count FROM gacha_records " +
-                                "WHERE player_uuid = ? AND machine_id = ? AND timestamp > ?")) {
+                                "WHERE player_uuid = ? AND machine_id = ? AND timestamp > ? AND source = 'draw'")) {
                             ps.setString(1, playerUuid.toString());
                             ps.setString(2, machineId);
                             ps.setLong(3, lastTime);
@@ -787,6 +806,12 @@ public class GachaManager {
                 ps.setString(1, playerUuid.toString());
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
+                        String sourceVal;
+                        try {
+                            sourceVal = rs.getString("source");
+                        } catch (SQLException e) {
+                            sourceVal = "draw";
+                        }
                         records.add(new GachaRecord(
                             rs.getString("player_name"),
                             rs.getString("machine_id"),
@@ -794,7 +819,8 @@ public class GachaManager {
                             rs.getString("item_key"),
                             rs.getInt("amount"),
                             rs.getDouble("cost"),
-                            rs.getLong("timestamp")
+                            rs.getLong("timestamp"),
+                            sourceVal
                         ));
                     }
                 }
@@ -817,9 +843,15 @@ public class GachaManager {
         private final int amount;
         private final double cost;
         private final long timestamp;
+        private final String source;
 
         public GachaRecord(String playerName, String machineId, String rewardId, String itemKey,
                           int amount, double cost, long timestamp) {
+            this(playerName, machineId, rewardId, itemKey, amount, cost, timestamp, "draw");
+        }
+
+        public GachaRecord(String playerName, String machineId, String rewardId, String itemKey,
+                          int amount, double cost, long timestamp, String source) {
             this.playerName = playerName;
             this.machineId = machineId;
             this.rewardId = rewardId;
@@ -827,6 +859,7 @@ public class GachaManager {
             this.amount = amount;
             this.cost = cost;
             this.timestamp = timestamp;
+            this.source = source != null ? source : "draw";
         }
 
         public String getPlayerName() { return playerName; }
@@ -836,6 +869,8 @@ public class GachaManager {
         public int getAmount() { return amount; }
         public double getCost() { return cost; }
         public long getTimestamp() { return timestamp; }
+        public String getSource() { return source; }
+        public boolean isPick() { return "pick".equals(source); }
     }
 
     /**
@@ -849,11 +884,11 @@ public class GachaManager {
     public void getDrawsSinceLastReward(UUID playerUuid, String machineId, String rewardId,
                                         java.util.function.Consumer<Integer> callback) {
         plugin.getDatabaseQueue().submit("getDrawsSinceLastReward", conn -> {
-            // 1. 查询上次抽到该奖品的时间
+            // 1. 查询上次抽到该奖品的时间（仅正常抽奖记录）
             Long lastTime = null;
             try (PreparedStatement ps = conn.prepareStatement(
                     "SELECT timestamp FROM gacha_records " +
-                    "WHERE player_uuid = ? AND machine_id = ? AND reward_id = ? " +
+                    "WHERE player_uuid = ? AND machine_id = ? AND reward_id = ? AND source = 'draw' " +
                     "ORDER BY timestamp DESC, id DESC LIMIT 1")) {
                 ps.setString(1, playerUuid.toString());
                 ps.setString(2, machineId);
@@ -865,12 +900,12 @@ public class GachaManager {
                 }
             }
 
-            // 2. 统计次数
+            // 2. 统计次数（仅正常抽奖记录）
             String countSql;
             if (lastTime == null) {
                 // 第一次抽到：统计该玩家在该扭蛋机的总抽奖次数
                 countSql = "SELECT COUNT(*) as count FROM gacha_records " +
-                          "WHERE player_uuid = ? AND machine_id = ?";
+                          "WHERE player_uuid = ? AND machine_id = ? AND source = 'draw'";
                 try (PreparedStatement ps = conn.prepareStatement(countSql)) {
                     ps.setString(1, playerUuid.toString());
                     ps.setString(2, machineId);
@@ -881,9 +916,9 @@ public class GachaManager {
                     }
                 }
             } else {
-                // 有记录：统计从那时到现在抽了多少次（任何奖品）
+                // 有记录：统计从那时到现在抽了多少次（任何奖品，仅正常抽奖）
                 countSql = "SELECT COUNT(*) as count FROM gacha_records " +
-                          "WHERE player_uuid = ? AND machine_id = ? AND timestamp > ?";
+                          "WHERE player_uuid = ? AND machine_id = ? AND timestamp > ? AND source = 'draw'";
                 try (PreparedStatement ps = conn.prepareStatement(countSql)) {
                     ps.setString(1, playerUuid.toString());
                     ps.setString(2, machineId);
@@ -915,10 +950,10 @@ public class GachaManager {
             int totalDraws = 0;
             int hitCount = 0;
 
-            // 1. 查询总抽奖次数
+            // 1. 查询总抽奖次数（仅正常抽奖）
             String totalSql = playerUuid == null
-                ? "SELECT COUNT(*) as count FROM gacha_records WHERE machine_id = ?"
-                : "SELECT COUNT(*) as count FROM gacha_records WHERE player_uuid = ? AND machine_id = ?";
+                ? "SELECT COUNT(*) as count FROM gacha_records WHERE machine_id = ? AND source = 'draw'"
+                : "SELECT COUNT(*) as count FROM gacha_records WHERE player_uuid = ? AND machine_id = ? AND source = 'draw'";
             try (PreparedStatement ps = conn.prepareStatement(totalSql)) {
                 if (playerUuid == null) {
                     ps.setString(1, machineId);
@@ -933,10 +968,10 @@ public class GachaManager {
                 }
             }
 
-            // 2. 查询抽中该奖品的次数
+            // 2. 查询抽中该奖品的次数（仅正常抽奖）
             String hitSql = playerUuid == null
-                ? "SELECT COUNT(*) as count FROM gacha_records WHERE machine_id = ? AND reward_id = ?"
-                : "SELECT COUNT(*) as count FROM gacha_records WHERE player_uuid = ? AND machine_id = ? AND reward_id = ?";
+                ? "SELECT COUNT(*) as count FROM gacha_records WHERE machine_id = ? AND reward_id = ? AND source = 'draw'"
+                : "SELECT COUNT(*) as count FROM gacha_records WHERE player_uuid = ? AND machine_id = ? AND reward_id = ? AND source = 'draw'";
             try (PreparedStatement ps = conn.prepareStatement(hitSql)) {
                 if (playerUuid == null) {
                     ps.setString(1, machineId);
@@ -1006,5 +1041,158 @@ public class GachaManager {
             plugin.getLogger().warning("清理抽奖记录失败: " + error.getMessage());
             callback.accept(0);
         });
+    }
+
+    // =============================
+    // 累抽自选相关方法
+    // =============================
+
+    /**
+     * 查询玩家的累抽自选进度
+     * @param playerUuid 玩家UUID
+     * @param machineId 扭蛋机ID
+     * @param callback 回调函数，参数为 MilepostInfo
+     */
+    public void getMilepostProgress(UUID playerUuid, String machineId, Consumer<MilepostInfo> callback) {
+        GachaMachine machine = machines.get(machineId);
+        if (machine == null || !machine.isMilepostEnabled()) {
+            callback.accept(new MilepostInfo(0, 0, 0, machine != null ? machine.getMilepostInterval() : 0, machine != null ? machine.getMilepostMaxPicks() : 0));
+            return;
+        }
+
+        int interval = machine.getMilepostInterval();
+        int maxPicks = machine.getMilepostMaxPicks();
+
+        plugin.getDatabaseQueue().submit("getMilepostProgress", conn -> {
+            int totalDraws = 0;
+            int usedPicks = 0;
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT source, COUNT(*) as cnt FROM gacha_records " +
+                    "WHERE player_uuid = ? AND machine_id = ? GROUP BY source")) {
+                ps.setString(1, playerUuid.toString());
+                ps.setString(2, machineId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String source = rs.getString("source");
+                        int cnt = rs.getInt("cnt");
+                        if ("draw".equals(source)) {
+                            totalDraws = cnt;
+                        } else if ("pick".equals(source)) {
+                            usedPicks = cnt;
+                        }
+                    }
+                }
+            }
+
+            int earnedPicks = totalDraws / interval;
+            int cappedEarned = maxPicks > 0 ? Math.min(earnedPicks, maxPicks) : earnedPicks;
+            int availablePicks = Math.max(0, cappedEarned - usedPicks);
+
+            return new MilepostInfo(totalDraws, availablePicks, usedPicks, interval, maxPicks);
+        }, callback, error -> {
+            plugin.getLogger().warning("查询累抽自选进度失败: " + error.getMessage());
+            callback.accept(new MilepostInfo(0, 0, 0, interval, maxPicks));
+        });
+    }
+
+    /**
+     * 使用一次自选机会
+     * @param playerUuid 玩家UUID
+     * @param machineId 扭蛋机ID
+     * @param reward 选择的奖品
+     * @param playerName 玩家名称
+     * @param callback 回调函数，参数为是否成功
+     */
+    public void usePick(UUID playerUuid, String machineId, GachaReward reward, String playerName, Consumer<Boolean> callback) {
+        GachaMachine machine = machines.get(machineId);
+        if (machine == null || !machine.isMilepostEnabled()) {
+            callback.accept(false);
+            return;
+        }
+
+        int interval = machine.getMilepostInterval();
+        int maxPicks = machine.getMilepostMaxPicks();
+
+        plugin.getDatabaseQueue().submit("usePick", conn -> {
+            // 1. 查询当前状态
+            int totalDraws = 0;
+            int usedPicks = 0;
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT source, COUNT(*) as cnt FROM gacha_records " +
+                    "WHERE player_uuid = ? AND machine_id = ? GROUP BY source")) {
+                ps.setString(1, playerUuid.toString());
+                ps.setString(2, machineId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String source = rs.getString("source");
+                        int cnt = rs.getInt("cnt");
+                        if ("draw".equals(source)) {
+                            totalDraws = cnt;
+                        } else if ("pick".equals(source)) {
+                            usedPicks = cnt;
+                        }
+                    }
+                }
+            }
+
+            // 2. 计算可用次数
+            int earnedPicks = totalDraws / interval;
+            int cappedEarned = maxPicks > 0 ? Math.min(earnedPicks, maxPicks) : earnedPicks;
+            int availablePicks = Math.max(0, cappedEarned - usedPicks);
+
+            if (availablePicks <= 0) {
+                return false;
+            }
+
+            // 3. 记录自选结果
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO gacha_records (player_uuid, player_name, machine_id, reward_id, item_key, amount, cost, timestamp, source) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                ps.setString(1, playerUuid.toString());
+                ps.setString(2, playerName);
+                ps.setString(3, machineId);
+                ps.setString(4, reward.getId());
+                ps.setString(5, reward.getItemKey());
+                ps.setInt(6, reward.getAmount());
+                ps.setDouble(7, 0.0);
+                ps.setLong(8, System.currentTimeMillis());
+                ps.setString(9, "pick");
+                ps.executeUpdate();
+            }
+
+            return true;
+        }, callback, error -> {
+            plugin.getLogger().warning("使用自选失败: " + error.getMessage());
+            callback.accept(false);
+        });
+    }
+
+    /**
+     * 累抽自选进度数据类
+     */
+    public static class MilepostInfo {
+        private final int totalDraws;
+        private final int availablePicks;
+        private final int usedPicks;
+        private final int interval;
+        private final int maxPicks;
+
+        public MilepostInfo(int totalDraws, int availablePicks, int usedPicks, int interval, int maxPicks) {
+            this.totalDraws = totalDraws;
+            this.availablePicks = availablePicks;
+            this.usedPicks = usedPicks;
+            this.interval = interval;
+            this.maxPicks = maxPicks;
+        }
+
+        public int getTotalDraws() { return totalDraws; }
+        public int getAvailablePicks() { return availablePicks; }
+        public int getUsedPicks() { return usedPicks; }
+        public int getInterval() { return interval; }
+        public int getMaxPicks() { return maxPicks; }
+        public boolean hasAvailable() { return availablePicks > 0; }
+        public boolean hasMaxPicks() { return maxPicks > 0; }
     }
 }
