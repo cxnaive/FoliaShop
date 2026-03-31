@@ -471,24 +471,20 @@ public class GachaDisplayManager {
                 return;
             }
 
-            // 获取当前变换，在此基础上叠加旋转
-            Transformation currentTrans = display.getTransformation();
-            Quaternionf currentRot = currentTrans.getLeftRotation();
-
-            // 在当前旋转基础上叠加Y轴旋转
-            Quaternionf rotationY = new Quaternionf().rotateY(rotationPerPeriod);
-            Quaternionf newRot = currentRot.mul(rotationY);
+            // 从绝对时间计算旋转角度，避免累积四元数乘法导致的浮点漂移
+            long time = System.currentTimeMillis() / 50; // 转换为tick
+            float totalRotation = baseRotationY + rotationPerPeriod * (time / period);
+            Quaternionf newRot = new Quaternionf().rotateY(totalRotation);
 
             // 计算上下浮动（基于时间）
-            long time = System.currentTimeMillis() / 50; // 转换为tick
             double yOffset = Math.sin(time * 0.1) * amplitude;
 
             // 应用新的变换
             Transformation newTrans = new Transformation(
                 new Vector3f(0, (float) yOffset, 0),        // Y轴位移（上下浮动）
-                newRot,                                     // 左旋转：Y轴持续旋转
-                currentTrans.getScale(),                    // 保持缩放
-                currentTrans.getRightRotation()             // 保持右旋转
+                newRot,                                     // 左旋转：基于绝对时间的Y轴旋转
+                new Vector3f(scale, scale, scale),          // 保持固定缩放
+                new Quaternionf(0, 0, 0, 1)                 // 右旋转保持不变
             );
 
             // 设置插值参数（每次都要设置，确保客户端知道插值时间）

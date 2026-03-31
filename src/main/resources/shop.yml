@@ -62,6 +62,7 @@ sell-system:
 #     name: "建筑材料"
 #     icon: "minecraft:bricks"
 #     slot: 10
+#     enabled: true        # 是否启用该分类（默认 true），设为 false 则不在商店中显示
 #     subcategories:
 #       blocks:
 #         name: "建筑方块"
@@ -304,3 +305,15 @@ items:
     stock: -1
     category: "minerals"
     slot: 13
+
+# =============================
+# 拆分配置（可选）
+# =============================
+# 你可以将分类和商品拆分到多个文件中，便于管理
+# 文件名格式: shop_{name}.yml（如 shop_weapons.yml、shop_potions.yml）
+# 所有 shop_*.yml 会自动加载并合并到本文件
+# 参考 jar 内置的 shop_example.yml 获取拆分文件示例
+#
+# 每个分类和商品支持 enabled 字段:
+#   enabled: true   # 启用（默认）
+#   enabled: false  # 禁用，不在商店中显示但保留配置

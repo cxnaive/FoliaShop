@@ -141,3 +141,11 @@ messages:
   # 系统相关
   database-error: "<red>数据库错误，请联系管理员。"
   feature-disabled: "<red>该功能已被禁用。"
+
+  # 收集兑换相关
+  collect-empty: "<red>暂无可用的收集兑换任务"
+  collect-not-found: "<red>收集任务 '<yellow>{id}<red>' 不存在！"
+  collect-checking: "<yellow>正在检查收集进度..."
+  collect-incomplete: "<red>收集未完成！进度: <yellow>{collected}<gray>/<yellow>{required}"
+  collect-claim-success: "<green>✔ 成功领取收集奖励: <yellow>{name}"
+  collect-claim-fail: "<red>领取失败，条件不满足或已领取过"

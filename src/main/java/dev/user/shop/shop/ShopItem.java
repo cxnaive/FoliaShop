@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ShopItem {
 
@@ -15,7 +16,7 @@ public class ShopItem {
     private double buyPrice;
     private double sellPrice;
     private int buyPoints; // 购买所需点券，0表示不需要
-    private int stock;
+    private final AtomicInteger stock;
     private String category;
     private int slot;
     private boolean enabled;
@@ -40,7 +41,7 @@ public class ShopItem {
         this.buyPrice = buyPrice;
         this.sellPrice = sellPrice;
         this.buyPoints = buyPoints;
-        this.stock = stock;
+        this.stock = new AtomicInteger(stock);
         this.category = category;
         this.slot = slot;
         this.enabled = true;
@@ -64,19 +65,15 @@ public class ShopItem {
     public double getSellPrice() { return sellPrice; }
     public void setSellPrice(double sellPrice) { this.sellPrice = sellPrice; }
 
-    public int getStock() { return stock; }
-    public void setStock(int stock) { this.stock = stock; }
-    public boolean hasUnlimitedStock() { return stock < 0; }
-    public boolean isInStock(int amount) { return stock < 0 || stock >= amount; }
+    public int getStock() { return stock.get(); }
+    public void setStock(int stock) { this.stock.set(stock); }
+    public boolean hasUnlimitedStock() { return stock.get() < 0; }
+    public boolean isInStock(int amount) { int s = stock.get(); return s < 0 || s >= amount; }
     public void reduceStock(int amount) {
-        if (stock > 0) {
-            stock = Math.max(0, stock - amount);
-        }
+        stock.getAndUpdate(s -> s > 0 ? Math.max(0, s - amount) : s);
     }
     public void addStock(int amount) {
-        if (stock >= 0) {
-            stock += amount;
-        }
+        stock.getAndUpdate(s -> s >= 0 ? s + amount : s);
     }
 
     public String getCategory() { return category; }

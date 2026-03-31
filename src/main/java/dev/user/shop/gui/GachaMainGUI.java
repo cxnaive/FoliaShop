@@ -20,7 +20,7 @@ public class GachaMainGUI extends AbstractGUI {
     protected void initialize() {
         fillBorder(Material.BLACK_STAINED_GLASS_PANE);
 
-        Collection<GachaMachine> machines = plugin.getGachaManager().getAllMachines();
+        Collection<GachaMachine> machines = plugin.getGachaManager().getEnabledMachines();
 
         int autoSlot = 10;
         for (GachaMachine machine : machines) {
@@ -71,6 +71,36 @@ public class GachaMainGUI extends AbstractGUI {
                 p.closeInventory();
                 new GachaMachineGUI(plugin, p, machine).open();
             });
+        }
+
+        // 收集兑换按钮（有收集配置时显示）
+        if (plugin.getGachaManager().hasCollections()) {
+            ItemStack collBtn = new ItemStack(Material.ENDER_CHEST);
+            ItemUtil.setDisplayName(collBtn, "§d§l收集兑换");
+            ItemUtil.setLore(collBtn, java.util.Arrays.asList(
+                "§7收集指定奖品组合",
+                "§7兑换额外奖励！",
+                "",
+                "§e点击查看"
+            ));
+
+            // 从右往左找最后一个可用位置
+            int collSlot = -1;
+            for (int i = 16; i >= 10; i--) {
+                if (i % 9 == 0 || i % 9 == 8) continue;
+                if (inventory.getItem(i) == null) {
+                    collSlot = i;
+                    break;
+                }
+            }
+            if (collSlot == -1) {
+                plugin.getLogger().warning("收集兑换按钮无法分配位置，界面已满");
+            } else {
+                setItem(collSlot, collBtn, p -> {
+                    p.closeInventory();
+                    new GachaCollectionGUI(plugin, p).open();
+                });
+            }
         }
 
         // 返回按钮

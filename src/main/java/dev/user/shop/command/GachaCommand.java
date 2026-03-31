@@ -44,11 +44,15 @@ public class GachaCommand implements CommandExecutor, TabCompleter {
             String machineId = args[0].toLowerCase();
             GachaMachine machine = plugin.getGachaManager().getMachine(machineId);
             if (machine != null) {
-                new GachaMachineGUI(plugin, player, machine).open();
+                if (!machine.isEnabled()) {
+                    player.sendMessage(Component.text("该扭蛋机已禁用: " + machineId).color(NamedTextColor.RED));
+                } else {
+                    new GachaMachineGUI(plugin, player, machine).open();
+                }
             } else {
                 player.sendMessage(Component.text("扭蛋机不存在: " + machineId).color(NamedTextColor.RED));
                 player.sendMessage(Component.text("可用的扭蛋机: " + String.join(", ",
-                    plugin.getGachaManager().getAllMachines().stream()
+                    plugin.getGachaManager().getEnabledMachines().stream()
                         .map(GachaMachine::getId)
                         .toList())).color(NamedTextColor.YELLOW));
             }
@@ -64,8 +68,8 @@ public class GachaCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            // 返回所有扭蛋机ID
-            for (GachaMachine machine : plugin.getGachaManager().getAllMachines()) {
+            // 返回已启用的扭蛋机ID
+            for (GachaMachine machine : plugin.getGachaManager().getEnabledMachines()) {
                 completions.add(machine.getId());
             }
             return completions.stream()

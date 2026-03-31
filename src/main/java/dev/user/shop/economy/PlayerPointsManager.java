@@ -235,7 +235,8 @@ public class PlayerPointsManager {
      * @return 是否足够
      */
     public boolean hasEnoughPoints(Player player, int amount) {
-        if (!enabled || amount <= 0) return true;
+        if (!enabled) return false;
+        if (amount <= 0) return true;
         return getPoints(player) >= amount;
     }
 
@@ -246,7 +247,8 @@ public class PlayerPointsManager {
      * @return 是否足够
      */
     public boolean hasEnoughPoints(UUID playerUuid, int amount) {
-        if (!enabled || amount <= 0) return true;
+        if (!enabled) return false;
+        if (amount <= 0) return true;
         return getPoints(playerUuid) >= amount;
     }
 

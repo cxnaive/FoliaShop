@@ -103,7 +103,7 @@ public class PurchaseManager {
     private void processPurchase(PurchaseTask task) {
         Player player = plugin.getServer().getPlayer(task.playerUuid);
         if (player == null || !player.isOnline()) {
-            task.callback.accept(new PurchaseResult(false, "玩家已离线", null, 0, 0, 0));
+            sendCallback(player, task.callback, new PurchaseResult(false, "玩家已离线", null, 0, 0, 0));
             return;
         }
 
@@ -120,7 +120,7 @@ public class PurchaseManager {
             if (shopItem.hasConditions()) {
                 String failedCondition = checkConditions(player, shopItem.getConditions());
                 if (failedCondition != null) {
-                    task.callback.accept(new PurchaseResult(false, "不满足购买条件: " + failedCondition, null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "不满足购买条件: " + failedCondition, null, 0, 0, 0));
                     return;
                 }
             }
@@ -128,12 +128,12 @@ public class PurchaseManager {
             // 2. 检查金币余额（只读，无副作用）
             if (totalCost > 0) {
                 if (xconomyAPI == null) {
-                    task.callback.accept(new PurchaseResult(false, "经济系统未启用", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "经济系统未启用", null, 0, 0, 0));
                     return;
                 }
                 double balance = getPlayerBalance(player);
                 if (balance < totalCost) {
-                    task.callback.accept(new PurchaseResult(false,
+                    sendCallback(player, task.callback, new PurchaseResult(false,
                         String.format("金币不足，需要 %.2f，拥有 %.2f", totalCost, balance),
                         null, 0, 0, 0));
                     return;
@@ -143,12 +143,12 @@ public class PurchaseManager {
             // 3. 检查点券余额（只读，无副作用）
             if (totalPoints > 0) {
                 if (playerPointsAPI == null) {
-                    task.callback.accept(new PurchaseResult(false, "点券系统未启用", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "点券系统未启用", null, 0, 0, 0));
                     return;
                 }
                 int points = playerPointsAPI.look(player.getUniqueId());
                 if (points < totalPoints) {
-                    task.callback.accept(new PurchaseResult(false,
+                    sendCallback(player, task.callback, new PurchaseResult(false,
                         String.format("点券不足，需要 %d，拥有 %d", totalPoints, points),
                         null, 0, 0, 0));
                     return;
@@ -165,7 +165,7 @@ public class PurchaseManager {
                 if (remaining < amount) {
                     conn.close();
                     conn = null;
-                    task.callback.accept(new PurchaseResult(false,
+                    sendCallback(player, task.callback, new PurchaseResult(false,
                         String.format("今日购买限额已满，剩余可购买 %d 个", remaining),
                         null, 0, 0, 0));
                     return;
@@ -178,7 +178,7 @@ public class PurchaseManager {
                 if (remaining < amount) {
                     conn.close();
                     conn = null;
-                    task.callback.accept(new PurchaseResult(false,
+                    sendCallback(player, task.callback, new PurchaseResult(false,
                         String.format("您已购买过该物品，剩余可购买 %d 个", remaining),
                         null, 0, 0, 0));
                     return;
@@ -188,7 +188,7 @@ public class PurchaseManager {
             int actualAmount = atomicReduceStock(conn, shopItem.getId(), amount);
             if (actualAmount == 0) {
                 conn.rollback();
-                task.callback.accept(new PurchaseResult(false, "库存不足", null, 0, 0, 0));
+                sendCallback(player, task.callback, new PurchaseResult(false, "库存不足", null, 0, 0, 0));
                 return;
             }
             // 调整实际购买数量
@@ -199,12 +199,12 @@ public class PurchaseManager {
                 // 重新检查货币（因为数量变了）
                 if (totalCost > 0 && getPlayerBalance(player) < totalCost) {
                     conn.rollback();
-                    task.callback.accept(new PurchaseResult(false, "金币不足（库存调整后）", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "金币不足（库存调整后）", null, 0, 0, 0));
                     return;
                 }
                 if (totalPoints > 0 && playerPointsAPI.look(player.getUniqueId()) < totalPoints) {
                     conn.rollback();
-                    task.callback.accept(new PurchaseResult(false, "点券不足（库存调整后）", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "点券不足（库存调整后）", null, 0, 0, 0));
                     return;
                 }
             }
@@ -214,7 +214,7 @@ public class PurchaseManager {
                 boolean success = deductMoney(player, totalCost);
                 if (!success) {
                     conn.rollback();
-                    task.callback.accept(new PurchaseResult(false, "扣除金币失败", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "扣除金币失败", null, 0, 0, 0));
                     return;
                 }
             }
@@ -228,7 +228,7 @@ public class PurchaseManager {
                         returnMoney(player, totalCost);
                     }
                     conn.rollback();
-                    task.callback.accept(new PurchaseResult(false, "扣除点券失败", null, 0, 0, 0));
+                    sendCallback(player, task.callback, new PurchaseResult(false, "扣除点券失败", null, 0, 0, 0));
                     return;
                 }
             }
@@ -287,7 +287,7 @@ public class PurchaseManager {
                     plugin.getLogger().warning("回滚失败: " + ex.getMessage());
                 }
             }
-            task.callback.accept(new PurchaseResult(false, "数据库错误: " + e.getMessage(), null, 0, 0, 0));
+            sendCallback(player, task.callback, new PurchaseResult(false, "数据库错误: " + e.getMessage(), null, 0, 0, 0));
         } finally {
             if (conn != null) {
                 try {
@@ -296,6 +296,18 @@ public class PurchaseManager {
                     plugin.getLogger().warning("关闭连接失败: " + e.getMessage());
                 }
             }
+        }
+    }
+
+    /**
+     * 在玩家区域线程上发送回调，避免在executor线程直接操作玩家相关API
+     */
+    private void sendCallback(Player player, Consumer<PurchaseResult> callback, PurchaseResult result) {
+        if (player != null && player.isOnline()) {
+            player.getScheduler().execute(plugin, () -> callback.accept(result), null, 1L);
+        } else {
+            // 玩家离线时直接回调（不涉及inventory操作）
+            callback.accept(result);
         }
     }
 

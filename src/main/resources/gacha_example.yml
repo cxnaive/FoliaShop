@@ -1,0 +1,36 @@
+# =============================
+# 示例：拆分配置文件
+# =============================
+# 此文件演示如何将部分扭蛋机和收集兑换拆分到单独的文件中
+# 文件名格式: gacha_{name}.yml，会自动加载并合并到 gacha.yml
+#
+# 注意：
+# - 此文件中的扭蛋机默认 enabled: false，不会在扭蛋界面显示
+# - 将 enabled 改为 true 即可启用
+# - 多个 gacha_*.yml 文件按文件名字母序加载，重复 key 会打印警告
+# - 全局设置（display-entity 等）建议只在 gacha.yml 中配置
+
+machines:
+  event:
+    name: "<light_purple>限定活动扭蛋机"
+    description:
+      - "<gray>限时活动专用扭蛋机"
+      - "<light_purple>有机会获得限定物品！"
+    icon: "minecraft:command_block"
+    cost: 200.0
+    animation-duration: 4
+    broadcast-rare: true
+    broadcast-threshold: 0.05
+    enabled: false
+    rewards:
+      - id: "event_common"
+        item: "minecraft:firework_rocket"
+        amount: 16
+        probability: 0.30
+        display-name: "<white>烟花礼包"
+      - id: "event_rare"
+        item: "minecraft:elytra"
+        amount: 1
+        probability: 0.02
+        display-name: "<gold>鞘翅"
+        broadcast: true

@@ -4,6 +4,7 @@ import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.GachaBlockBinding;
 import dev.user.shop.gui.MainMenuGUI;
 import dev.user.shop.gui.ShopAdminGUI;
+import dev.user.shop.util.MessageUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.FluidCollisionMode;
@@ -85,6 +86,29 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 new dev.user.shop.gui.GachaMainGUI(plugin, player).open();
+            }
+            case "collect" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
+                    return true;
+                }
+                if (!plugin.getShopConfig().isGachaEnabled()) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("feature-disabled"));
+                    return true;
+                }
+                if (!player.hasPermission("foliashop.gacha.use")) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("no-permission"));
+                    return true;
+                }
+                if (!plugin.getGachaManager().hasCollections()) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("collect-empty"));
+                    return true;
+                }
+                if (args.length >= 3 && args[1].equalsIgnoreCase("claim")) {
+                    handleCollectClaim(player, args[2]);
+                } else {
+                    new dev.user.shop.gui.GachaCollectionGUI(plugin, player).open();
+                }
             }
             case "admin" -> {
                 if (!(sender instanceof Player player)) {
@@ -185,6 +209,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("foliashop.use")) {
                 completions.add("shop");
                 completions.add("gacha");
+                completions.add("collect");
             }
             if (sender.hasPermission("foliashop.admin")) {
                 completions.add("reload");
@@ -202,6 +227,21 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             return completions.stream()
                 .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
                 .toList();
+        }
+
+        // collect 命令的参数补全
+        if (args[0].equalsIgnoreCase("collect") && sender.hasPermission("foliashop.gacha.use")) {
+            if (args.length == 2) {
+                return List.of("claim").stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .toList();
+            }
+            if (args.length == 3 && args[1].equalsIgnoreCase("claim")) {
+                return plugin.getGachaManager().getAllCollections().stream()
+                    .map(c -> c.getId())
+                    .filter(id -> id.toLowerCase().startsWith(args[2].toLowerCase()))
+                    .toList();
+            }
         }
 
         // clean 命令的参数补全
@@ -305,6 +345,8 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/foliashop §7- 打开主菜单");
         sender.sendMessage("§e/foliashop shop §7- 打开商店");
         sender.sendMessage("§e/foliashop gacha §7- 打开扭蛋");
+        sender.sendMessage("§e/foliashop collect §7- 打开收集兑换");
+        sender.sendMessage("§e/foliashop collect claim <id> §7- 领取收集奖励");
         if (sender.hasPermission("foliashop.admin")) {
             sender.sendMessage("§e/foliashop reload §7- 重载配置");
             sender.sendMessage("§e/foliashop admin §7- 打开商店管理界面");
@@ -323,6 +365,46 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§e/foliashop stats [-|<玩家名>] <machineId> <rewardId> §7- 查询奖品统计");
         }
         sender.sendMessage("§6==================================");
+    }
+
+    private void handleCollectClaim(Player player, String collectionId) {
+        var collSet = plugin.getGachaManager().getCollection(collectionId);
+        if (collSet == null) {
+            player.sendMessage(plugin.getShopConfig().getComponent("collect-not-found",
+                MessageUtil.Placeholder.text("id", collectionId)));
+            return;
+        }
+
+        player.sendMessage(plugin.getShopConfig().getComponent("collect-checking"));
+
+        plugin.getGachaManager().getCollectionProgress(player.getUniqueId(), collSet, progress -> {
+            plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                if (!player.isOnline()) return;
+
+                if (!collSet.isComplete(progress)) {
+                    int collected = collSet.getCollectedCount(progress);
+                    int required = collSet.getRequiredCount();
+                    player.sendMessage(plugin.getShopConfig().getComponent("collect-incomplete",
+                        MessageUtil.Placeholder.text("collected", String.valueOf(collected)),
+                        MessageUtil.Placeholder.text("required", String.valueOf(required))));
+                    return;
+                }
+
+                plugin.getGachaManager().claimCollection(player.getUniqueId(), collectionId, success -> {
+                    plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                        if (!player.isOnline()) return;
+
+                        if (success) {
+                            player.sendMessage(plugin.getShopConfig().getComponent("collect-claim-success",
+                                MessageUtil.Placeholder.text("name", collSet.getName())));
+                            plugin.getGachaManager().giveCollectionReward(player, collSet);
+                        } else {
+                            player.sendMessage(plugin.getShopConfig().getComponent("collect-claim-fail"));
+                        }
+                    });
+                });
+            });
+        });
     }
 
     private void handleCleanCommand(CommandSender sender, String[] args) {

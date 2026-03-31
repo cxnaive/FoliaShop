@@ -97,6 +97,63 @@ public class ShopConfig {
     }
 
     /**
+     * 释放示例配置文件（仅首次运行，不覆盖已有文件）
+     */
+    private void saveExampleIfNotExists(String fileName) {
+        File exampleFile = new File(plugin.getDataFolder(), fileName);
+        if (!exampleFile.exists()) {
+            try {
+                plugin.saveResource(fileName, false);
+                plugin.getLogger().info("已释放示例配置: " + fileName + "，可参考修改后作为拆分配置使用");
+            } catch (IllegalArgumentException e) {
+                // jar 中不存在该资源文件，忽略
+            }
+        }
+    }
+
+
+    /**
+     * 扫描并合并额外配置文件（如 shop_xxx.yml, gacha_xxx.yml）
+     * 将子文件的配置合并到基础配置中，重复 key 后加载的覆盖先加载的
+     */
+    private void mergeExtraConfigs(String prefix, FileConfiguration base) {
+        File dataFolder = plugin.getDataFolder();
+        File[] files = dataFolder.listFiles((dir, name) ->
+            name.startsWith(prefix) && name.endsWith(".yml") && name.length() > prefix.length() + 4);
+
+        if (files == null || files.length == 0) return;
+
+        // 按文件名排序，保证加载顺序稳定
+        java.util.Arrays.sort(files, java.util.Comparator.comparing(File::getName));
+
+        for (File file : files) {
+            FileConfiguration extra = YamlConfiguration.loadConfiguration(file);
+            String fileName = file.getName();
+
+            // 记录合并前 base 中的 key 集合，用于检测覆盖
+            java.util.Set<String> baseKeys = new java.util.HashSet<>(base.getKeys(true));
+
+            // 合并叶子节点（跳过 section 本身）
+            java.util.Set<String> mergedKeys = new java.util.HashSet<>();
+            java.util.Set<String> overriddenKeys = new java.util.HashSet<>();
+            for (String key : extra.getKeys(true)) {
+                if (extra.isConfigurationSection(key)) continue;
+                mergedKeys.add(key);
+                if (baseKeys.contains(key)) {
+                    overriddenKeys.add(key);
+                }
+                base.set(key, extra.get(key));
+            }
+
+            plugin.getLogger().info("已加载额外配置: " + fileName + " (" + mergedKeys.size() + " 项)");
+
+            if (!overriddenKeys.isEmpty()) {
+                plugin.getLogger().warning("配置 " + fileName + " 覆盖了以下已有配置项: " + String.join(", ", overriddenKeys));
+            }
+        }
+    }
+
+    /**
      * 从 shop.yml 或主配置获取值（优先使用 shop.yml）
      */
     private String getShopString(String path, String defaultValue) {
@@ -177,9 +234,15 @@ public class ShopConfig {
     public void load() {
         this.config = plugin.getConfig();
 
+        // 首次运行时释放示例拆分配置文件
+        saveExampleIfNotExists("shop_example.yml");
+        saveExampleIfNotExists("gacha_example.yml");
+
         // 加载单独的配置文件（如果存在）
         this.shopConfig = loadOrCreateConfig("shop.yml");
+        mergeExtraConfigs("shop_", this.shopConfig);
         this.gachaConfig = loadOrCreateConfig("gacha.yml");
+        mergeExtraConfigs("gacha_", this.gachaConfig);
 
         // 数据库设置（仅从主配置读取）
         this.databaseType = config.getString("database.type", "h2");
@@ -276,6 +339,17 @@ public class ShopConfig {
                 messages.put(key, messagesSection.getString(key));
             }
         }
+        // 收集兑换消息默认值（兼容旧配置文件）
+        setDefaultMessage("collect-empty", "<red>暂无可用的收集兑换任务");
+        setDefaultMessage("collect-not-found", "<red>收集任务 '<yellow>{id}<red>' 不存在！");
+        setDefaultMessage("collect-checking", "<yellow>正在检查收集进度...");
+        setDefaultMessage("collect-incomplete", "<red>收集未完成！进度: <yellow>{collected}<gray>/<yellow>{required}");
+        setDefaultMessage("collect-claim-success", "<green>✔ 成功领取收集奖励: <yellow>{name}");
+        setDefaultMessage("collect-claim-fail", "<red>领取失败，条件不满足或已领取过");
+    }
+
+    private void setDefaultMessage(String key, String defaultValue) {
+        messages.putIfAbsent(key, defaultValue);
     }
 
     // Getters
@@ -308,7 +382,7 @@ public class ShopConfig {
     public boolean isSellSystemEnabled() { return sellSystemEnabled; }
     public String getSellSystemMode() { return sellSystemMode; }
     public boolean isAddStockOnSell() { return addStockOnSell; }
-    public Map<String, Double> getCustomSellItems() { return customSellItems; }
+    public Map<String, Double> getCustomSellItems() { return Collections.unmodifiableMap(customSellItems); }
     public double getCustomSellPrice(String itemKey) { return customSellItems.getOrDefault(itemKey, 0.0); }
 
     public boolean isGachaEnabled() { return gachaEnabled; }
@@ -477,6 +551,14 @@ public class ShopConfig {
         // 回退到主配置的 gacha.machines 路径
         plugin.getLogger().info("[ShopConfig] 回退到 config.yml 的 gacha.machines");
         return config.getConfigurationSection("gacha.machines");
+    }
+
+    public ConfigurationSection getGachaCollections() {
+        if (gachaConfig != null) {
+            ConfigurationSection section = gachaConfig.getConfigurationSection("collections");
+            if (section != null) return section;
+        }
+        return config.getConfigurationSection("gacha.collections");
     }
 
     public static class ItemConfig {

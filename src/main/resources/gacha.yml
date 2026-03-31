@@ -57,6 +57,7 @@ display-entity:
 
 # 扭蛋机列表
 # 配置说明:
+# - enabled: 是否启用该扭蛋机（默认 true），设为 false 则不在扭蛋界面显示
 # - icon: 扭蛋机图标物品ID
 # - icon-components: 图标附加NBT组件（可选），格式: "path+value"
 # - pity: 软保底配置（可选）
@@ -195,7 +196,6 @@ machines:
     broadcast-threshold: 0.10
 
     # 扭蛋机图标带NBT示例：发光效果
-    icon: "minecraft:diamond_sword"
     icon-components:
       # 添加附魔光泽（让图标看起来发光）
       - "minecraft:enchantment_glint_override+true"
@@ -268,3 +268,91 @@ machines:
           - "minecraft:unbreakable+{}"
           # 设置自定义数据
           - "minecraft:custom_data+{gacha_reward:true,rarity:'legendary',machine:'premium',version:1b}"
+
+# =============================
+# 收集兑换配置（可选）
+# =============================
+# 玩家抽到指定奖品组合后可兑换额外奖励
+# 支持跨扭蛋机收集、可配置是否重复兑换
+#
+# collections:
+#   <collection-id>:
+#     name: "<gold>收集任务名称"          # 支持 MiniMessage 格式
+#     description:
+#       - "描述文本（支持 MiniMessage 格式）"
+#     # GUI 图标物品（可选，默认根据完成状态自动选择）
+#     # 格式与扭蛋奖品 item 相同，如 "minecraft:diamond"、"minecraft:player_head{custom_model_data:1}"
+#     icon: "minecraft:diamond"
+#     # GUI 中的显示位置（0=自动分配，默认 0）
+#     slot: 0
+#     # 收集条件：需要集齐的奖品列表
+#     # 完整格式: {machine: "扭蛋机ID", reward: "奖品ID"}
+#     # 简写格式: "扭蛋机ID:奖品ID"
+#     requires:
+#       - machine: "normal"
+#         reward: "uncommon_iron"
+#       - "premium:p_diamond"
+#     # 兑换奖励（与扭蛋奖品格式相同）
+#     reward:
+#       item: "minecraft:diamond_sword"
+#       amount: 1
+#       components:
+#         - "minecraft:enchantments+{'minecraft:sharpness':10}"
+#         - "minecraft:custom_name+\"§6§l收集奖励·传说之剑\""
+#         - "minecraft:unbreakable+{}"
+#       commands:
+#         - "say {player} 完成了收集任务！"
+#       give-item: true
+#     # 是否可重复兑换（false=一次性，true=每次重新集齐都可兑换）
+#     repeatable: false
+#
+# 示例：战士套装收集
+# collections:
+#   warrior_set:
+#     name: "<gold><bold>战士套装收集"
+#     icon: "minecraft:iron_sword"
+#     description:
+#       - "<gold>收集齐4种战士装备"
+#       - "<gold>兑换传说之剑！"
+#     requires:
+#       - machine: "normal"
+#         reward: "uncommon_iron"
+#       - machine: "premium"
+#         reward: "p_diamond"
+#       - machine: "normal"
+#         reward: "rare_diamond"
+#       - machine: "premium"
+#         reward: "p_netherite"
+#     reward:
+#       item: "minecraft:diamond_sword"
+#       amount: 1
+#       components:
+#         - "minecraft:enchantments+{'minecraft:sharpness':10}"
+#         - "minecraft:custom_name+\"§6§l收集奖励·传说之剑\""
+#         - "minecraft:unbreakable+{}"
+#       commands:
+#         - "say {player} 完成了战士套装收集！"
+#       give-item: true
+#     repeatable: false
+#
+#   # 简单收集（可重复兑换）
+#   basic_set:
+#     name: "<yellow>基础收集"
+#     icon: "minecraft:emerald"
+#     description:
+#       - "<yellow>收集基础材料兑换奖励"
+#     requires:
+#       - "normal:common_cobblestone"
+#       - "normal:common_oak_log"
+#     reward:
+#       item: "minecraft:emerald"
+#       amount: 1
+#     repeatable: true
+
+# =============================
+# 拆分配置（可选）
+# =============================
+# 你可以将扭蛋机和收集兑换拆分到多个文件中，便于管理
+# 文件名格式: gacha_{name}.yml（如 gacha_event.yml、gacha_premium.yml）
+# 所有 gacha_*.yml 会自动加载并合并到本文件
+# 参考 jar 内置的 gacha_example.yml 获取拆分文件示例

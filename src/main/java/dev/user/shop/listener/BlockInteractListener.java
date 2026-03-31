@@ -60,6 +60,12 @@ public class BlockInteractListener implements Listener {
             return;
         }
 
+        // 检查该扭蛋机是否启用
+        if (!machine.isEnabled()) {
+            player.sendMessage(Component.text("该扭蛋机已禁用").color(NamedTextColor.RED));
+            return;
+        }
+
         // 检查权限
         if (!player.hasPermission("foliashop.gacha.use")) {
             player.sendMessage(plugin.getShopConfig().getComponent("no-permission"));

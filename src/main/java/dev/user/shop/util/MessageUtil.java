@@ -7,7 +7,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -143,45 +145,52 @@ public class MessageUtil {
         }
 
         // 有可翻译占位符，需要分段构建
-        // 找到第一个可翻译占位符
-        String firstTranslatableKey = null;
+        // 收集所有可翻译占位符
+        List<Placeholder> translatables = new ArrayList<>();
         for (Placeholder ph : placeholders) {
             if (ph.isTranslatable()) {
-                firstTranslatableKey = ph.getKey();
-                break;
+                translatables.add(ph);
             }
         }
 
-        if (firstTranslatableKey == null) {
+        if (translatables.isEmpty()) {
             // 不应该发生，但保险起见
             return parseMiniMessage(template);
         }
 
-        // 按可翻译占位符分割模板
+        // 逐个处理可翻译占位符：按模板中出现的顺序分割
         Component result = Component.empty();
-        String[] parts = template.split("\\{" + firstTranslatableKey + "\\}");
+        String remaining = template;
 
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i];
+        for (Placeholder translatable : translatables) {
+            String key = translatable.getKey();
+            String pattern = "{" + key + "}";
+            int idx = remaining.indexOf(pattern);
+            if (idx == -1) continue;
 
-            // 替换该部分中的其他普通占位符
+            // 处理占位符前的部分（替换其中的普通占位符）
+            String before = remaining.substring(0, idx);
             for (Placeholder ph : placeholders) {
-                if (!ph.getKey().equals(firstTranslatableKey)) {
-                    part = part.replace("{" + ph.getKey() + "}", ph.toText());
+                if (!ph.isTranslatable()) {
+                    before = before.replace("{" + ph.getKey() + "}", ph.toText());
                 }
             }
+            result = result.append(parseMiniMessage(before));
 
-            // 解析 MiniMessage 并追加
-            result = result.append(parseMiniMessage(part));
+            // 插入可翻译组件
+            result = result.append(translatable.toComponent());
 
-            // 在分割点之间插入可翻译组件（除了最后一部分）
-            if (i < parts.length - 1) {
-                Placeholder translatablePh = placeholderMap.get(firstTranslatableKey);
-                if (translatablePh != null) {
-                    result = result.append(translatablePh.toComponent());
-                }
+            // 剩余部分继续处理
+            remaining = remaining.substring(idx + pattern.length());
+        }
+
+        // 处理最后一个可翻译占位符之后的部分
+        for (Placeholder ph : placeholders) {
+            if (!ph.isTranslatable()) {
+                remaining = remaining.replace("{" + ph.getKey() + "}", ph.toText());
             }
         }
+        result = result.append(parseMiniMessage(remaining));
 
         return result;
     }

@@ -204,37 +204,49 @@ public class FoliaShopPlugin extends JavaPlugin {
     }
 
     public ShopManager getShopManager() {
-        // 如果延迟加载未完成，先初始化
         if (shopManager == null) {
-            getLogger().warning("ShopManager 未初始化，正在紧急初始化...");
-            this.shopManager = new ShopManager(this);
+            synchronized (this) {
+                if (shopManager == null) {
+                    getLogger().warning("ShopManager 未初始化，正在紧急初始化...");
+                    this.shopManager = new ShopManager(this);
+                }
+            }
         }
         return shopManager;
     }
 
     public GachaManager getGachaManager() {
-        // 如果延迟加载未完成，先初始化
         if (gachaManager == null) {
-            getLogger().warning("GachaManager 未初始化，正在紧急初始化...");
-            this.gachaManager = new GachaManager(this);
+            synchronized (this) {
+                if (gachaManager == null) {
+                    getLogger().warning("GachaManager 未初始化，正在紧急初始化...");
+                    this.gachaManager = new GachaManager(this);
+                }
+            }
         }
         return gachaManager;
     }
 
     public GachaBlockManager getGachaBlockManager() {
-        // 如果延迟加载未完成，先初始化
         if (gachaBlockManager == null) {
-            getLogger().warning("GachaBlockManager 未初始化，正在紧急初始化...");
-            this.gachaBlockManager = new GachaBlockManager(this);
+            synchronized (this) {
+                if (gachaBlockManager == null) {
+                    getLogger().warning("GachaBlockManager 未初始化，正在紧急初始化...");
+                    this.gachaBlockManager = new GachaBlockManager(this);
+                }
+            }
         }
         return gachaBlockManager;
     }
 
     public GachaDisplayManager getGachaDisplayManager() {
-        // 如果延迟加载未完成，先初始化
         if (gachaDisplayManager == null) {
-            getLogger().warning("GachaDisplayManager 未初始化，正在紧急初始化...");
-            this.gachaDisplayManager = new GachaDisplayManager(this);
+            synchronized (this) {
+                if (gachaDisplayManager == null) {
+                    getLogger().warning("GachaDisplayManager 未初始化，正在紧急初始化...");
+                    this.gachaDisplayManager = new GachaDisplayManager(this);
+                }
+            }
         }
         return gachaDisplayManager;
     }

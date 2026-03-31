@@ -288,6 +288,16 @@ public class DatabaseManager {
                     ")";
             stmt.execute(blockBindingTable);
 
+            // 收集兑换领取记录表
+            String collectionTable = "CREATE TABLE IF NOT EXISTS gacha_collections (" +
+                    "    player_uuid VARCHAR(36) NOT NULL," +
+                    "    collection_id VARCHAR(64) NOT NULL," +
+                    "    claim_count INT DEFAULT 1," +
+                    "    last_claim_time BIGINT NOT NULL," +
+                    "    PRIMARY KEY (player_uuid, collection_id)" +
+                    ")";
+            stmt.execute(collectionTable);
+
             // 数据库迁移：添加缺失的 display_entity_uuid 列
             migrateAddDisplayEntityUuidColumn(conn);
 
@@ -570,12 +580,7 @@ public class DatabaseManager {
             if (!columnExists) {
                 plugin.getLogger().info("[数据库迁移] 正在添加 outdated 列到 gacha_block_bindings 表...");
                 try (Statement stmt = conn.createStatement()) {
-                    boolean isMySQL = plugin.getDatabaseManager().isMySQL();
-                    if (isMySQL) {
-                        stmt.execute("ALTER TABLE gacha_block_bindings ADD COLUMN outdated BOOLEAN DEFAULT FALSE");
-                    } else {
-                        stmt.execute("ALTER TABLE gacha_block_bindings ADD COLUMN outdated BOOLEAN DEFAULT FALSE");
-                    }
+                    stmt.execute("ALTER TABLE gacha_block_bindings ADD COLUMN outdated BOOLEAN DEFAULT FALSE");
                     plugin.getLogger().info("[数据库迁移] outdated 列添加成功");
                 }
             }
@@ -732,6 +737,9 @@ public class DatabaseManager {
     }
 
     public Connection getConnection() throws SQLException {
+        if (dataSource == null || dataSource.isClosed()) {
+            throw new SQLException("数据库连接池未初始化或已关闭");
+        }
         return dataSource.getConnection();
     }
 

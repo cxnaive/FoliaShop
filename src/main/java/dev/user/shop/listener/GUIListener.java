@@ -185,9 +185,6 @@ public class GUIListener implements Listener {
      * 在 Folia 环境下需要在玩家所在区域线程执行
      */
     private void returnItemsToPlayer(Player player, SellGUI sellGUI) {
-        // 获取玩家位置用于调度到正确的区域线程
-        Location playerLoc = player.getLocation();
-
         // 收集需要返回的物品
         List<ItemStack> itemsToReturn = new ArrayList<>();
         for (int slot : sellGUI.getSellSlots()) {
@@ -201,21 +198,16 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // 在区域线程执行物品操作
-        org.bukkit.Bukkit.getRegionScheduler().execute(
-            dev.user.shop.FoliaShopPlugin.getInstance(),
-            playerLoc,
-            () -> {
-                for (ItemStack item : itemsToReturn) {
-                    java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-                    if (!leftover.isEmpty()) {
-                        // 如果背包满了，掉落在地上
-                        for (ItemStack drop : leftover.values()) {
-                            player.getWorld().dropItemNaturally(player.getLocation(), drop);
-                        }
+        // 在玩家区域线程执行物品操作
+        player.getScheduler().execute(dev.user.shop.FoliaShopPlugin.getInstance(), () -> {
+            for (ItemStack item : itemsToReturn) {
+                java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                if (!leftover.isEmpty()) {
+                    for (ItemStack drop : leftover.values()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), drop);
                     }
                 }
             }
-        );
+        }, null, 1L);
     }
 }

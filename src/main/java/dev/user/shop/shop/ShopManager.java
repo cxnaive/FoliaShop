@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ShopManager {
 
@@ -22,9 +23,9 @@ public class ShopManager {
 
     public ShopManager(FoliaShopPlugin plugin) {
         this.plugin = plugin;
-        this.items = new HashMap<>();
-        this.categories = new HashMap<>();
-        this.itemCacheBySimilarity = new HashMap<>();
+        this.items = new ConcurrentHashMap<>();
+        this.categories = new ConcurrentHashMap<>();
+        this.itemCacheBySimilarity = new ConcurrentHashMap<>();
         load();
     }
 
@@ -148,6 +149,7 @@ public class ShopManager {
             String name = catSection.getString("name", key);
             String icon = catSection.getString("icon", "minecraft:chest");
             int slot = catSection.getInt("slot", 10);
+            boolean enabled = catSection.getBoolean("enabled", true);
 
             // 加载子分类
             Map<String, SubCategory> subcategories = new LinkedHashMap<>();
@@ -165,7 +167,14 @@ public class ShopManager {
                 }
             }
 
-            categories.put(key, new ShopCategory(key, name, icon, slot, subcategories));
+            ShopCategory category = new ShopCategory(key, name, icon, slot, enabled, subcategories);
+            if (categories.containsKey(key)) {
+                plugin.getLogger().warning("分类 '" + key + "' 重复定义，后加载的配置将覆盖之前的");
+            }
+            categories.put(key, category);
+            if (!enabled) {
+                plugin.getLogger().info("分类 '" + key + "' 已禁用，跳过显示");
+            }
         }
     }
 
@@ -1047,7 +1056,9 @@ public class ShopManager {
     }
 
     public Collection<ShopCategory> getAllCategories() {
-        return categories.values();
+        return categories.values().stream()
+            .filter(ShopCategory::isEnabled)
+            .collect(java.util.stream.Collectors.toList());
     }
 
     /**
@@ -1089,13 +1100,19 @@ public class ShopManager {
         private final String name;
         private final String icon;
         private final int slot;
+        private final boolean enabled;
         private final Map<String, SubCategory> subcategories;
 
         public ShopCategory(String id, String name, String icon, int slot, Map<String, SubCategory> subcategories) {
+            this(id, name, icon, slot, true, subcategories);
+        }
+
+        public ShopCategory(String id, String name, String icon, int slot, boolean enabled, Map<String, SubCategory> subcategories) {
             this.id = id;
             this.name = name;
             this.icon = icon;
             this.slot = slot;
+            this.enabled = enabled;
             this.subcategories = subcategories != null ? subcategories : new LinkedHashMap<>();
         }
 
@@ -1103,6 +1120,7 @@ public class ShopManager {
         public String getName() { return name; }
         public String getIcon() { return icon; }
         public int getSlot() { return slot; }
+        public boolean isEnabled() { return enabled; }
         public Map<String, SubCategory> getSubcategories() { return subcategories; }
         public boolean hasSubcategories() { return !subcategories.isEmpty(); }
     }

@@ -82,7 +82,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1.0f, 2.0f);
         slowdownStartTick = (int) (animationDuration * 0.6);
 
-        animationTask = plugin.getServer().getRegionScheduler().runAtFixedRate(plugin, player.getLocation(), task -> {
+        animationTask = player.getScheduler().runAtFixedRate(plugin, task -> {
             // 只检查玩家是否在线，不比较库存（避免引用比较问题）
             // 如果玩家关闭GUI，onClose会被调用，动画会在那里处理
             if (!player.isOnline()) {
@@ -103,7 +103,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
                 speedCounter = 0;
                 updateRollingAnimation();
             }
-        }, 1L, 1L);
+        }, null, 1L, 1L);
     }
 
     private void updateSpeed(int tick) {
@@ -175,12 +175,12 @@ public class GachaTenAnimationGUI extends AbstractGUI {
 
         showPityMessage();
 
-        plugin.getServer().getRegionScheduler().runDelayed(plugin, player.getLocation(), t -> {
+        player.getScheduler().runDelayed(plugin, t -> {
             if (!state.compareAndSet(AnimationState.PENDING, AnimationState.COMPLETED)) {
                 return;
             }
             updatePityCountersAndShowResult();
-        }, 10L);
+        }, null, 10L);
     }
 
     private void updatePityCountersAndShowResult() {
@@ -228,9 +228,9 @@ public class GachaTenAnimationGUI extends AbstractGUI {
         if (state.get() == AnimationState.PENDING) {
             if (state.compareAndSet(AnimationState.PENDING, AnimationState.COMPLETED)) {
                 showPityMessage();
-                plugin.getServer().getRegionScheduler().runDelayed(plugin, player.getLocation(), t -> {
+                player.getScheduler().execute(plugin, () -> {
                     updatePityCountersAndShowResult();
-                }, 1L);
+                }, null, 1L);
             }
         }
     }

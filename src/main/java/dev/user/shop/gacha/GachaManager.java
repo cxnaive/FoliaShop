@@ -12,16 +12,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class GachaManager {
 
     private final FoliaShopPlugin plugin;
     private final Map<String, GachaMachine> machines;
+    private final Map<String, CollectionSet> collectionSets;
 
     public GachaManager(FoliaShopPlugin plugin) {
         this.plugin = plugin;
-        this.machines = new HashMap<>();
+        this.machines = new ConcurrentHashMap<>();
+        this.collectionSets = new ConcurrentHashMap<>();
         load();
     }
 
@@ -58,11 +61,8 @@ public class GachaManager {
             int pityMax = machineSection.getInt("pity.max", 90);
             double pityTargetMaxProb = machineSection.getDouble("pity.target-max-probability", 0.05);
 
-            // 跳过禁用的扭蛋机
-            if (!enabled) {
-                plugin.getLogger().info("扭蛋机 '" + machineId + "' 已禁用，跳过加载");
-                continue;
-            }
+            // 跳过禁用的扭蛋机（仍然加载但标记为禁用）
+            // enabled 字段已读取，后续通过 isEnabled() 过滤显示
 
             // 加载展示实体覆盖配置
             DisplayEntityConfig displayConfig = DisplayEntityConfig.fromConfig(
@@ -111,9 +111,17 @@ public class GachaManager {
                     reward.setDisplayItem(item);
                 }
 
+                // 检查奖品ID重复
+                if (machine.getRewards().stream().anyMatch(r -> r.getId().equals(id))) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 中奖品 '" + id + "' 重复定义，可能导致收集兑换等功能异常");
+                }
+
                 machine.addReward(reward);
             }
 
+            if (machines.containsKey(machineId)) {
+                plugin.getLogger().warning("扭蛋机 '" + machineId + "' 重复定义，后加载的配置将覆盖之前的");
+            }
             machines.put(machineId, machine);
 
             // 检查总概率
@@ -124,6 +132,74 @@ public class GachaManager {
         }
 
         plugin.getLogger().info("已加载 " + machines.size() + " 个扭蛋机");
+
+        // 加载收集兑换配置
+        loadCollections();
+    }
+
+    /**
+     * 加载收集兑换配置
+     */
+    private void loadCollections() {
+        collectionSets.clear();
+
+        ConfigurationSection collSection = plugin.getShopConfig().getGachaCollections();
+        if (collSection == null) return;
+
+        for (String collId : collSection.getKeys(false)) {
+            ConfigurationSection cs = collSection.getConfigurationSection(collId);
+            if (cs == null) continue;
+
+            String name = cs.getString("name", collId);
+            String icon = cs.getString("icon", null);
+            List<String> description = cs.getStringList("description");
+
+            // 解析 requires
+            List<CollectionSet.RequireEntry> requires = new ArrayList<>();
+            List<?> requiresList = cs.getList("requires");
+            if (requiresList != null) {
+                for (Object reqObj : requiresList) {
+                    if (reqObj instanceof String str) {
+                        // 简写格式: "machine:reward"
+                        String[] parts = str.split(":", 2);
+                        if (parts.length == 2) {
+                            requires.add(new CollectionSet.RequireEntry(parts[0], parts[1]));
+                        }
+                    } else if (reqObj instanceof Map<?, ?> map) {
+                        // 完整格式: {machine: "xxx", reward: "yyy"}
+                        String machine = String.valueOf(map.get("machine"));
+                        String reward = String.valueOf(map.get("reward"));
+                        requires.add(new CollectionSet.RequireEntry(machine, reward));
+                    }
+                }
+            }
+
+            // 解析 reward
+            ConfigurationSection rewardSection = cs.getConfigurationSection("reward");
+            CollectionSet.CollectionReward reward = null;
+            if (rewardSection != null) {
+                String item = rewardSection.getString("item", "minecraft:air");
+                int amount = rewardSection.getInt("amount", 1);
+                Map<String, String> components = ItemUtil.parseComponents(rewardSection.get("components"));
+                List<String> commands = rewardSection.getStringList("commands");
+                boolean giveItem = rewardSection.getBoolean("give-item", true);
+                reward = new CollectionSet.CollectionReward(item, amount, components, commands, giveItem);
+            }
+
+            boolean repeatable = cs.getBoolean("repeatable", false);
+            int slot = cs.getInt("slot", 0);
+
+            if (!requires.isEmpty() && reward != null) {
+                if (collectionSets.containsKey(collId)) {
+                    plugin.getLogger().warning("收集兑换 '" + collId + "' 重复定义，后加载的配置将覆盖之前的");
+                }
+                collectionSets.put(collId, new CollectionSet(collId, name, icon, description, requires, reward, repeatable, slot));
+            } else {
+                plugin.getLogger().warning("收集兑换 '" + collId + "' 配置不完整，跳过加载");
+            }
+        }
+
+        plugin.getLogger().info("已加载 " + collectionSets.size() + " 个收集兑换");
     }
 
     public void reload() {
@@ -149,6 +225,8 @@ public class GachaManager {
                 ps.executeUpdate();
             }
             return null;
+        }, null, error -> {
+            plugin.getLogger().warning("记录扭蛋抽奖失败: " + error.getMessage());
         });
     }
 
@@ -309,8 +387,259 @@ public class GachaManager {
         return machines.values();
     }
 
+    /**
+     * 获取所有已启用的扭蛋机
+     */
+    public Collection<GachaMachine> getEnabledMachines() {
+        return machines.values().stream()
+            .filter(GachaMachine::isEnabled)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
     public boolean hasMachine(String id) {
         return machines.containsKey(id);
+    }
+
+    // ==================== 收集兑换相关 ====================
+
+    /**
+     * 发放收集兑换奖励（在主线程调用）
+     */
+    public void giveCollectionReward(org.bukkit.entity.Player player, CollectionSet collSet) {
+        CollectionSet.CollectionReward reward = collSet.getReward();
+        if (reward.isGiveItem()) {
+            org.bukkit.inventory.ItemStack rewardItem = dev.user.shop.util.ItemUtil.createItemFromKey(plugin, reward.getItem());
+            if (rewardItem != null) {
+                rewardItem.setAmount(reward.getAmount());
+                if (reward.hasComponents()) {
+                    rewardItem = dev.user.shop.util.ItemUtil.applyComponents(rewardItem, reward.getComponents());
+                }
+                java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(rewardItem);
+                for (org.bukkit.inventory.ItemStack drop : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                }
+            }
+        }
+
+        if (reward.hasCommands()) {
+            plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                for (String cmd : reward.getCommands()) {
+                    String parsed = cmd.replace("{player}", player.getName());
+                    try {
+                        org.bukkit.Bukkit.dispatchCommand(org.bukkit.Bukkit.getConsoleSender(), parsed);
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("执行收集奖励命令失败: " + parsed + " - " + e.getMessage());
+                    }
+                }
+            });
+        }
+    }
+
+    public Collection<CollectionSet> getAllCollections() {
+        return collectionSets.values();
+    }
+
+    public CollectionSet getCollection(String id) {
+        return collectionSets.get(id);
+    }
+
+    public boolean hasCollections() {
+        return !collectionSets.isEmpty();
+    }
+
+    /**
+     * 查询玩家的收集进度
+     * @param callback Map<machineId, Set<rewardId>> 玩家在各扭蛋机中已抽到的奖品
+     */
+    public void getCollectionProgress(UUID playerUuid, CollectionSet collSet,
+                                       Consumer<Map<String, Set<String>>> callback) {
+        // 收集所有需要的 (machineId, rewardId) 对
+        Set<String> machineIds = new HashSet<>();
+        for (CollectionSet.RequireEntry req : collSet.getRequires()) {
+            machineIds.add(req.getMachineId());
+        }
+
+        plugin.getDatabaseQueue().submit("getCollectionProgress", conn -> {
+            Map<String, Set<String>> result = new HashMap<>();
+
+            for (String machineId : machineIds) {
+                Set<String> rewardIds = new HashSet<>();
+                // 检查是否已领取过（repeatable 时需要查 last_claim_time）
+                long lastClaimTime = 0;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT last_claim_time FROM gacha_collections WHERE player_uuid = ? AND collection_id = ?")) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, collSet.getId());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            lastClaimTime = rs.getLong("last_claim_time");
+                        }
+                    }
+                }
+
+                // 查询该扭蛋机下玩家抽到过的所有 reward_id
+                String sql;
+                if (lastClaimTime > 0 && collSet.isRepeatable()) {
+                    // repeatable: 只统计上次领取之后的记录
+                    sql = "SELECT DISTINCT reward_id FROM gacha_records WHERE player_uuid = ? AND machine_id = ? AND timestamp > ?";
+                } else {
+                    sql = "SELECT DISTINCT reward_id FROM gacha_records WHERE player_uuid = ? AND machine_id = ?";
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, machineId);
+                    if (lastClaimTime > 0 && collSet.isRepeatable()) {
+                        ps.setLong(3, lastClaimTime);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            rewardIds.add(rs.getString("reward_id"));
+                        }
+                    }
+                }
+                result.put(machineId, rewardIds);
+            }
+            return result;
+        }, callback, error -> {
+            plugin.getLogger().warning("查询收集进度失败: " + error.getMessage());
+            callback.accept(new HashMap<>());
+        });
+    }
+
+    /**
+     * 检查玩家是否已领取过该收集奖励
+     */
+    public void hasClaimedCollection(UUID playerUuid, String collectionId, Consumer<Boolean> callback) {
+        plugin.getDatabaseQueue().submit("hasClaimedCollection", conn -> {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT 1 FROM gacha_collections WHERE player_uuid = ? AND collection_id = ?")) {
+                ps.setString(1, playerUuid.toString());
+                ps.setString(2, collectionId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            }
+        }, callback, error -> {
+            plugin.getLogger().warning("查询收集领取状态失败: " + error.getMessage());
+            callback.accept(false);
+        });
+    }
+
+    /**
+     * 领取收集奖励
+     * @return true=领取成功, false=已领取或不满足条件
+     */
+    public void claimCollection(UUID playerUuid, String collectionId, Consumer<Boolean> callback) {
+        CollectionSet collSet = collectionSets.get(collectionId);
+        if (collSet == null) {
+            callback.accept(false);
+            return;
+        }
+
+        plugin.getDatabaseQueue().submit("claimCollection", conn -> {
+            // 1. 检查是否已领取（非 repeatable）
+            if (!collSet.isRepeatable()) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT 1 FROM gacha_collections WHERE player_uuid = ? AND collection_id = ?")) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, collectionId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            return false; // 已领取
+                        }
+                    }
+                }
+            }
+
+            // 2. 查询收集进度并验证
+            Set<String> machineIds = new HashSet<>();
+            for (CollectionSet.RequireEntry req : collSet.getRequires()) {
+                machineIds.add(req.getMachineId());
+            }
+
+            Map<String, Set<String>> playerRewards = new HashMap<>();
+            long lastClaimTime = 0;
+
+            // 获取上次领取时间
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT last_claim_time FROM gacha_collections WHERE player_uuid = ? AND collection_id = ?")) {
+                ps.setString(1, playerUuid.toString());
+                ps.setString(2, collectionId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        lastClaimTime = rs.getLong("last_claim_time");
+                    }
+                }
+            }
+
+            for (String machineId : machineIds) {
+                Set<String> rewardIds = new HashSet<>();
+                String sql;
+                if (lastClaimTime > 0 && collSet.isRepeatable()) {
+                    sql = "SELECT DISTINCT reward_id FROM gacha_records WHERE player_uuid = ? AND machine_id = ? AND timestamp > ?";
+                } else {
+                    sql = "SELECT DISTINCT reward_id FROM gacha_records WHERE player_uuid = ? AND machine_id = ?";
+                }
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, machineId);
+                    if (lastClaimTime > 0 && collSet.isRepeatable()) {
+                        ps.setLong(3, lastClaimTime);
+                    }
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            rewardIds.add(rs.getString("reward_id"));
+                        }
+                    }
+                }
+                playerRewards.put(machineId, rewardIds);
+            }
+
+            // 3. 验证是否满足条件
+            if (!collSet.isComplete(playerRewards)) {
+                return false;
+            }
+
+            // 4. 记录领取
+            long now = System.currentTimeMillis();
+            boolean isMySQL = plugin.getDatabaseManager().isMySQL();
+            if (isMySQL) {
+                String sql = "INSERT INTO gacha_collections (player_uuid, collection_id, claim_count, last_claim_time) " +
+                             "VALUES (?, ?, 1, ?) " +
+                             "ON DUPLICATE KEY UPDATE claim_count = claim_count + 1, last_claim_time = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, collectionId);
+                    ps.setLong(3, now);
+                    ps.setLong(4, now);
+                    ps.executeUpdate();
+                }
+            } else {
+                // H2: 先尝试 UPDATE，无匹配行时 INSERT（原子语义，避免 TOCTOU）
+                String updateSql = "UPDATE gacha_collections SET claim_count = claim_count + 1, last_claim_time = ? WHERE player_uuid = ? AND collection_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setLong(1, now);
+                    ps.setString(2, playerUuid.toString());
+                    ps.setString(3, collectionId);
+                    int updated = ps.executeUpdate();
+                    if (updated == 0) {
+                        try (PreparedStatement ps2 = conn.prepareStatement(
+                                "INSERT INTO gacha_collections (player_uuid, collection_id, claim_count, last_claim_time) VALUES (?, ?, 1, ?)")) {
+                            ps2.setString(1, playerUuid.toString());
+                            ps2.setString(2, collectionId);
+                            ps2.setLong(3, now);
+                            ps2.executeUpdate();
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }, callback, error -> {
+            plugin.getLogger().warning("领取收集奖励失败: " + error.getMessage());
+            callback.accept(false);
+        });
     }
 
     /**

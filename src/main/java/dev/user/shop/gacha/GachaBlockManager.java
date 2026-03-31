@@ -46,8 +46,6 @@ public class GachaBlockManager {
      * 从数据库异步加载所有绑定（不阻塞）
      */
     private void loadBindingsAsync() {
-        blockBindings.clear();
-
         plugin.getDatabaseQueue().submit("loadBindings", conn -> {
             List<GachaBlockBinding> bindings = new ArrayList<>();
             try (Statement stmt = conn.createStatement();
@@ -58,11 +56,15 @@ public class GachaBlockManager {
             }
             return bindings;
         }, bindings -> {
+            // 原子替换：先构建新 map，再一次性替换，避免中间状态
+            Map<UUID, Map<BlockVector, String>> newMap = new ConcurrentHashMap<>();
             for (GachaBlockBinding binding : bindings) {
-                blockBindings
+                newMap
                     .computeIfAbsent(binding.getWorldUuid(), k -> new ConcurrentHashMap<>())
                     .put(binding.getPosition(), binding.getMachineId());
             }
+            blockBindings.clear();
+            blockBindings.putAll(newMap);
             plugin.getLogger().info("已加载 " + getTotalBindingCount() + " 个扭蛋机方块绑定");
         }, error -> {
             plugin.getLogger().severe("加载扭蛋机方块绑定失败: " + error.getMessage());

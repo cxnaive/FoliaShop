@@ -54,6 +54,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
                     player.sendMessage(Component.text("分类不存在: " + parentId).color(NamedTextColor.RED));
                     return true;
                 }
+                if (!parentCat.isEnabled()) {
+                    player.sendMessage(Component.text("分类已禁用: " + parentId).color(NamedTextColor.RED));
+                    return true;
+                }
 
                 ShopManager.SubCategory subCat = plugin.getShopManager().getSubcategory(parentId, subId);
                 if (subCat == null) {
@@ -67,6 +71,10 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
                 var category = plugin.getShopManager().getCategory(categoryPath);
                 if (category == null) {
                     player.sendMessage(Component.text("分类不存在: " + categoryPath).color(NamedTextColor.RED));
+                    return true;
+                }
+                if (!category.isEnabled()) {
+                    player.sendMessage(Component.text("分类已禁用: " + categoryPath).color(NamedTextColor.RED));
                     return true;
                 }
 

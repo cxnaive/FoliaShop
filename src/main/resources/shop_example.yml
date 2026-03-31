@@ -1,0 +1,63 @@
+# =============================
+# 示例：拆分配置文件
+# =============================
+# 此文件演示如何将部分分类和商品拆分到单独的文件中
+# 文件名格式: shop_{name}.yml，会自动加载并合并到 shop.yml
+#
+# 注意：
+# - 此文件中的所有分类默认 enabled: false，不会在商店中显示
+# - 将 enabled 改为 true 即可启用
+# - 多个 shop_*.yml 文件按文件名字母序加载，重复 key 会打印警告
+# - 全局设置（title、sell-discount 等）建议只在 shop.yml 中配置
+
+categories:
+  weapons:
+    name: "<red>武器装备"
+    icon: "minecraft:netherite_sword"
+    slot: 18
+    enabled: false
+  potions:
+    name: "<dark_purple>药水效果"
+    icon: "minecraft:potion"
+    slot: 20
+    enabled: false
+
+items:
+  diamond_sword:
+    item: "minecraft:diamond_sword"
+    buy-price: 500
+    sell-price: 200
+    stock: -1
+    category: weapons
+    slot: 10
+    daily-limit: 0
+    enabled: false
+  netherite_sword:
+    item: "minecraft:netherite_sword"
+    buy-price: 2000
+    sell-price: 800
+    stock: 10
+    category: weapons
+    slot: 11
+    daily-limit: 1
+    enabled: false
+  strength_potion:
+    item: "minecraft:potion"
+    buy-price: 100
+    sell-price: 0
+    stock: -1
+    category: potions
+    slot: 10
+    components:
+      - "minecraft:potion_contents+{potion:'minecraft:strength'}"
+    enabled: false
+  speed_potion:
+    item: "minecraft:potion"
+    buy-price: 100
+    sell-price: 0
+    stock: -1
+    category: potions
+    slot: 11
+    components:
+      - "minecraft:potion_contents+{potion:'minecraft:swiftness'}"
+    enabled: false

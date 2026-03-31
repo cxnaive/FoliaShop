@@ -105,7 +105,7 @@ public class GachaReward {
                 // 使用 ItemUtil.getDisplayName() 获取本地化名称
                 String itemDisplayName = dev.user.shop.util.ItemUtil.getDisplayName(displayItem);
                 // 如果是 <lang:...> 格式，需要特殊处理
-                if (itemDisplayName.startsWith("<lang:") && itemDisplayName.endsWith(">")) {
+                if (itemDisplayName.startsWith("<lang:") && itemDisplayName.endsWith(">") && itemDisplayName.length() > 7) {
                     String translationKey = itemDisplayName.substring(6, itemDisplayName.length() - 1);
                     return Component.translatable(translationKey);
                 }
