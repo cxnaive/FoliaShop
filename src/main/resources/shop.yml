@@ -54,6 +54,31 @@ sell-system:
 # =============================
 # 商品分类设置
 # =============================
+# 支持子分类（subcategories），子分类和商品可以在同一界面混合显示
+# 子分类就像一个"虚拟商品"，点击后进入下一层商品列表
+#
+# 子分类示例:
+#   building:
+#     name: "建筑材料"
+#     icon: "minecraft:bricks"
+#     slot: 10
+#     subcategories:
+#       blocks:
+#         name: "建筑方块"
+#         icon: "minecraft:stone"
+#         slot: 11          # 子分类也可以设置 slot，和商品混合排列
+#       decor:
+#         name: "装饰方块"
+#         icon: "minecraft:flower_pot"
+#         slot: 12
+#
+# 商品使用子分类时，category 格式为 "父分类:子分类"，如:
+#   category: "building:blocks"
+#
+# 子分类和商品可以放在同一个分类下，通过 slot 指定位置:
+#   - 点击子分类 → 进入下一层商品列表
+#   - 点击商品 → 直接购买
+#
 categories:
   building:
     name: "建筑材料"
@@ -81,7 +106,7 @@ categories:
 # - buy-points: 购买所需点券（PlayerPoints），0表示不需要点券
 # - sell-price: 出售价格（金币），0或负数表示不可出售（出售不会返还点券）
 # - stock: 库存数量，-1表示无限库存
-# - category: 所属分类ID
+# - category: 所属分类ID，支持子分类格式 "parent:child"（如 "building:blocks"）
 # - slot: 在分类GUI中的位置
 # - daily-limit: 每日购买限额，0表示无限制（每日重置）
 # - player-limit: 每个玩家终身购买限额，0表示无限制（永久累计）

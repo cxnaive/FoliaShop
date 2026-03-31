@@ -2,6 +2,8 @@ package dev.user.shop.command;
 
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gui.ShopCategoryGUI;
+import dev.user.shop.gui.ShopItemsGUI;
+import dev.user.shop.shop.ShopManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
@@ -39,12 +41,36 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length > 0) {
-            String categoryId = args[0].toLowerCase();
-            var category = plugin.getShopManager().getCategory(categoryId);
-            if (category != null) {
-                new dev.user.shop.gui.ShopItemsGUI(plugin, player, category).open();
+            String categoryPath = args[0].toLowerCase();
+
+            if (categoryPath.contains(":")) {
+                // 子分类路径: "parent:child"
+                String[] parts = categoryPath.split(":", 2);
+                String parentId = parts[0];
+                String subId = parts[1];
+
+                ShopManager.ShopCategory parentCat = plugin.getShopManager().getCategory(parentId);
+                if (parentCat == null) {
+                    player.sendMessage(Component.text("分类不存在: " + parentId).color(NamedTextColor.RED));
+                    return true;
+                }
+
+                ShopManager.SubCategory subCat = plugin.getShopManager().getSubcategory(parentId, subId);
+                if (subCat == null) {
+                    player.sendMessage(Component.text("子分类不存在: " + categoryPath).color(NamedTextColor.RED));
+                    return true;
+                }
+
+                new ShopItemsGUI(plugin, player, parentCat, subCat).open();
             } else {
-                player.sendMessage(Component.text("分类不存在: " + categoryId).color(NamedTextColor.RED));
+                // 父分类路径 - 直接打开 ShopItemsGUI（会显示子分类+商品）
+                var category = plugin.getShopManager().getCategory(categoryPath);
+                if (category == null) {
+                    player.sendMessage(Component.text("分类不存在: " + categoryPath).color(NamedTextColor.RED));
+                    return true;
+                }
+
+                new ShopItemsGUI(plugin, player, category).open();
             }
         } else {
             new ShopCategoryGUI(plugin, player).open();
@@ -58,12 +84,19 @@ public class ShopCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            // 返回所有分类ID
+            String input = args[0].toLowerCase();
             for (var category : plugin.getShopManager().getAllCategories()) {
+                // 添加父分类ID
                 completions.add(category.getId());
+                // 添加子分类路径
+                if (category.hasSubcategories()) {
+                    for (var sub : category.getSubcategories().values()) {
+                        completions.add(category.getId() + ":" + sub.getId());
+                    }
+                }
             }
             return completions.stream()
-                .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
+                .filter(s -> s.toLowerCase().startsWith(input))
                 .toList();
         }
 

@@ -41,14 +41,17 @@ public class ShopCategoryGUI extends AbstractGUI {
             ItemStack icon = ItemUtil.createItemFromKey(plugin, category.getIcon());
             ItemUtil.setDisplayName(icon, MessageUtil.convertMiniMessageToLegacy("<yellow><bold>" + category.getName()));
 
-            // 计算该分类下的商品数量
-            long itemCount = plugin.getShopManager().getItemsByCategory(category.getId()).size();
+            // 计算该分类下的商品数量（包含子分类）
+            long itemCount = plugin.getShopManager().getItemsByCategoryPath(category.getId()).size();
 
-            ItemUtil.setLore(icon, java.util.Arrays.asList(
-                "§7商品数量: §e" + itemCount,
-                "",
-                "§e点击查看该分类的商品"
-            ));
+            java.util.List<String> lore = new java.util.ArrayList<>();
+            lore.add("§7商品数量: §e" + itemCount);
+            if (category.hasSubcategories()) {
+                lore.add("§7子分类: §e" + category.getSubcategories().size() + " 个");
+            }
+            lore.add("");
+            lore.add("§e点击查看");
+            ItemUtil.setLore(icon, lore);
 
             // 确保slot在有效范围内且不是边框
             while (slot < 53 && (slot % 9 == 0 || slot % 9 == 8 || slot < 9 || slot > 44)) {

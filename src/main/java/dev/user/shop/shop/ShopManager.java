@@ -149,7 +149,23 @@ public class ShopManager {
             String icon = catSection.getString("icon", "minecraft:chest");
             int slot = catSection.getInt("slot", 10);
 
-            categories.put(key, new ShopCategory(key, name, icon, slot));
+            // 加载子分类
+            Map<String, SubCategory> subcategories = new LinkedHashMap<>();
+            ConfigurationSection subSection = catSection.getConfigurationSection("subcategories");
+            if (subSection != null) {
+                for (String subKey : subSection.getKeys(false)) {
+                    ConfigurationSection subCatSection = subSection.getConfigurationSection(subKey);
+                    if (subCatSection == null) continue;
+                    String subName = subCatSection.getString("name", subKey);
+                    String subIcon = subCatSection.getString("icon", "minecraft:chest");
+                    int subSlot = subCatSection.getInt("slot", 0);
+                    SubCategory sub = new SubCategory(subKey, subName, subIcon, subSlot);
+                    sub.setParentId(key);
+                    subcategories.put(subKey, sub);
+                }
+            }
+
+            categories.put(key, new ShopCategory(key, name, icon, slot, subcategories));
         }
     }
 
@@ -998,12 +1014,58 @@ public class ShopManager {
         return result;
     }
 
+    /**
+     * 根据完整分类路径获取商品（支持 parent:child 子分类格式）
+     * @param categoryPath 分类路径，如 "building" 或 "building:blocks"
+     * @return 匹配的商品列表
+     */
+    public List<ShopItem> getItemsByCategoryPath(String categoryPath) {
+        List<ShopItem> result = new ArrayList<>();
+        String lowerPath = categoryPath.toLowerCase();
+
+        for (ShopItem item : items.values()) {
+            if (!item.isEnabled()) continue;
+            String itemCat = item.getCategory().toLowerCase();
+
+            if (lowerPath.contains(":")) {
+                // 精确匹配子分类路径
+                if (itemCat.equals(lowerPath)) {
+                    result.add(item);
+                }
+            } else {
+                // 父分类路径：匹配 "parent" 或 "parent:*"
+                if (itemCat.equals(lowerPath) || itemCat.startsWith(lowerPath + ":")) {
+                    result.add(item);
+                }
+            }
+        }
+        return result;
+    }
+
     public ShopCategory getCategory(String id) {
         return categories.get(id);
     }
 
     public Collection<ShopCategory> getAllCategories() {
         return categories.values();
+    }
+
+    /**
+     * 获取指定父分类的子分类列表
+     */
+    public Collection<SubCategory> getSubcategories(String parentId) {
+        ShopCategory cat = categories.get(parentId);
+        if (cat == null) return Collections.emptyList();
+        return cat.getSubcategories().values();
+    }
+
+    /**
+     * 获取指定的子分类
+     */
+    public SubCategory getSubcategory(String parentId, String subId) {
+        ShopCategory cat = categories.get(parentId);
+        if (cat == null) return null;
+        return cat.getSubcategories().get(subId);
     }
 
     /**
@@ -1027,8 +1089,31 @@ public class ShopManager {
         private final String name;
         private final String icon;
         private final int slot;
+        private final Map<String, SubCategory> subcategories;
 
-        public ShopCategory(String id, String name, String icon, int slot) {
+        public ShopCategory(String id, String name, String icon, int slot, Map<String, SubCategory> subcategories) {
+            this.id = id;
+            this.name = name;
+            this.icon = icon;
+            this.slot = slot;
+            this.subcategories = subcategories != null ? subcategories : new LinkedHashMap<>();
+        }
+
+        public String getId() { return id; }
+        public String getName() { return name; }
+        public String getIcon() { return icon; }
+        public int getSlot() { return slot; }
+        public Map<String, SubCategory> getSubcategories() { return subcategories; }
+        public boolean hasSubcategories() { return !subcategories.isEmpty(); }
+    }
+
+    public static class SubCategory {
+        private final String id;
+        private final String name;
+        private final String icon;
+        private final int slot;
+
+        public SubCategory(String id, String name, String icon, int slot) {
             this.id = id;
             this.name = name;
             this.icon = icon;
@@ -1039,6 +1124,12 @@ public class ShopManager {
         public String getName() { return name; }
         public String getIcon() { return icon; }
         public int getSlot() { return slot; }
+        public String getFullPath() { return getParentId() + ":" + id; }
+        // 子分类需要知道父分类ID，但这里简化处理，由调用方传入
+        private String parentId;
+
+        public void setParentId(String parentId) { this.parentId = parentId; }
+        public String getParentId() { return parentId != null ? parentId : ""; }
     }
 
     /**
@@ -1090,6 +1181,16 @@ public class ShopManager {
                 catSection.set("name", category.getName());
                 catSection.set("icon", category.getIcon());
                 catSection.set("slot", category.getSlot());
+                // 写入子分类
+                if (category.hasSubcategories()) {
+                    ConfigurationSection subSection = catSection.createSection("subcategories");
+                    for (SubCategory sub : category.getSubcategories().values()) {
+                        ConfigurationSection subCatSection = subSection.createSection(sub.getId());
+                        subCatSection.set("name", sub.getName());
+                        subCatSection.set("icon", sub.getIcon());
+                        subCatSection.set("slot", sub.getSlot());
+                    }
+                }
             }
 
             // 写入商品

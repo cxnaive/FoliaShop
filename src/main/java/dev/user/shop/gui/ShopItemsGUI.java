@@ -18,20 +18,71 @@ import java.util.Map;
 public class ShopItemsGUI extends AbstractGUI {
 
     private final ShopManager.ShopCategory category;
+    private final ShopManager.SubCategory subcategory;
     private final java.util.Map<Integer, ShopItem> slotToItem;
+    private final java.util.Map<Integer, ShopManager.SubCategory> slotToSubcategory;
 
     public ShopItemsGUI(FoliaShopPlugin plugin, Player player, ShopManager.ShopCategory category) {
         super(plugin, player, MessageUtil.convertMiniMessageToLegacy(category.getName()), 54);
         this.category = category;
+        this.subcategory = null;
         this.slotToItem = new java.util.HashMap<>();
+        this.slotToSubcategory = new java.util.HashMap<>();
+    }
+
+    /**
+     * 子分类构造函数
+     */
+    public ShopItemsGUI(FoliaShopPlugin plugin, Player player, ShopManager.ShopCategory parentCategory, ShopManager.SubCategory subcategory) {
+        super(plugin, player, MessageUtil.convertMiniMessageToLegacy(subcategory.getName()), 54);
+        this.category = parentCategory;
+        this.subcategory = subcategory;
+        this.slotToItem = new java.util.HashMap<>();
+        this.slotToSubcategory = new java.util.HashMap<>();
     }
 
     @Override
     protected void initialize() {
         fillBorder(Material.BLACK_STAINED_GLASS_PANE);
         slotToItem.clear();
+        slotToSubcategory.clear();
 
-        List<ShopItem> items = plugin.getShopManager().getItemsByCategory(category.getId());
+        // 如果在父分类层级，显示子分类
+        if (subcategory == null && category.hasSubcategories()) {
+            for (ShopManager.SubCategory sub : category.getSubcategories().values()) {
+                ItemStack subIcon = createSubcategoryDisplay(sub);
+                int slot = sub.getSlot();
+
+                if (slot > 0 && slot < 45 && slot % 9 != 0 && slot % 9 != 8) {
+                    setItem(slot, subIcon, p -> {
+                        p.closeInventory();
+                        new ShopItemsGUI(plugin, p, category, sub).open();
+                    });
+                    slotToSubcategory.put(slot, sub);
+                } else {
+                    // 自动寻找空位
+                    for (int i = 10; i < 44; i++) {
+                        if (i % 9 == 0 || i % 9 == 8) continue;
+                        if (inventory.getItem(i) == null) {
+                            setItem(i, subIcon, p -> {
+                                p.closeInventory();
+                                new ShopItemsGUI(plugin, p, category, sub).open();
+                            });
+                            slotToSubcategory.put(i, sub);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 加载商品
+        List<ShopItem> items;
+        if (subcategory != null) {
+            items = plugin.getShopManager().getItemsByCategoryPath(category.getId() + ":" + subcategory.getId());
+        } else {
+            items = plugin.getShopManager().getItemsByCategory(category.getId());
+        }
 
         for (ShopItem shopItem : items) {
             if (!shopItem.isEnabled()) continue;
@@ -40,7 +91,7 @@ public class ShopItemsGUI extends AbstractGUI {
             if (item == null) continue;
 
             int slot = shopItem.getSlot();
-            if (slot > 0 && slot < 45 && slot % 9 != 0 && slot % 9 != 8) {
+            if (slot > 0 && slot < 45 && slot % 9 != 0 && slot % 9 != 8 && inventory.getItem(slot) == null) {
                 setItem(slot, item);  // 不设置action，让GUIListener处理点击
                 slotToItem.put(slot, shopItem);
             } else {
@@ -57,10 +108,35 @@ public class ShopItemsGUI extends AbstractGUI {
         }
 
         // 返回按钮
-        addBackButton(49, () -> new ShopCategoryGUI(plugin, player).open());
+        if (subcategory != null) {
+            addBackButton(49, () -> new ShopItemsGUI(plugin, player, category).open());
+        } else {
+            addBackButton(49, () -> new ShopCategoryGUI(plugin, player).open());
+        }
 
         // 关闭按钮
         addCloseButton(52);
+    }
+
+    /**
+     * 创建子分类显示物品
+     */
+    private ItemStack createSubcategoryDisplay(ShopManager.SubCategory sub) {
+        ItemStack icon = ItemUtil.createItemFromKey(plugin, sub.getIcon());
+        if (icon == null) icon = new ItemStack(Material.CHEST);
+
+        ItemUtil.setDisplayName(icon, "§e§l📁 " + sub.getName());
+
+        // 统计子分类下的商品数量
+        long itemCount = plugin.getShopManager().getItemsByCategoryPath(category.getId() + ":" + sub.getId()).size();
+
+        java.util.List<String> lore = new java.util.ArrayList<>();
+        lore.add("§7商品数量: §e" + itemCount);
+        lore.add("");
+        lore.add("§e点击查看商品");
+        ItemUtil.setLore(icon, lore);
+
+        return icon;
     }
 
     /**
@@ -121,16 +197,33 @@ public class ShopItemsGUI extends AbstractGUI {
         // 提交到 PurchaseManager 处理
         plugin.getPurchaseManager().submitPurchase(player, shopItem, amount, result -> {
             if (result.success) {
-                // 使用新的 Component API 构建购买成功消息
+                // 根据支付方式选择不同的消息模板
+                String messageKey;
+                Map<String, String> placeholders = new java.util.HashMap<>();
+                placeholders.put("amount", String.valueOf(result.amount));
+
+                boolean hasCost = result.cost > 0;
+                boolean hasPoints = result.points > 0;
+
+                if (hasCost && hasPoints) {
+                    messageKey = "purchase-success-mixed";
+                    placeholders.put("cost", String.format("%.2f", result.cost));
+                    placeholders.put("currency", plugin.getShopConfig().getCurrencyName());
+                    placeholders.put("points", String.valueOf(result.points));
+                } else if (hasPoints) {
+                    messageKey = "purchase-success-points";
+                    placeholders.put("points", String.valueOf(result.points));
+                } else {
+                    messageKey = "purchase-success";
+                    placeholders.put("cost", String.format("%.2f", result.cost));
+                    placeholders.put("currency", plugin.getShopConfig().getCurrencyName());
+                }
+
                 Component successMessage = plugin.getShopConfig().getItemMessage(
-                    "purchase-success",
+                    messageKey,
                     "item",
                     shopItem.getDisplayItem(),
-                    Map.of(
-                        "amount", String.valueOf(result.amount),
-                        "cost", String.format("%.2f", result.cost),
-                        "currency", plugin.getShopConfig().getCurrencyName()
-                    )
+                    placeholders
                 );
                 player.sendMessage(successMessage);
                 // 刷新GUI显示
