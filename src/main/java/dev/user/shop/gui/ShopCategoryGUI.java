@@ -132,7 +132,42 @@ public class ShopCategoryGUI extends AbstractGUI {
             setItem(targetSlot, pageInfo, null);
         });
 
-        // 6. 出售按钮（如果启用）
+        // 6. 点券兑换按钮（如果启用）
+        if (plugin.getShopConfig().isExchangeEnabled() && plugin.getPlayerPointsManager().isEnabled()) {
+            buttonSetters.add(targetSlot -> {
+                ItemStack exchangeBtn = new ItemStack(Material.SUNFLOWER);
+                ItemUtil.setDisplayName(exchangeBtn, "§e§l点券兑换");
+                List<String> lore = new ArrayList<>();
+                lore.add("§7将点券兑换为" + plugin.getShopConfig().getCurrencyName());
+                lore.add("§7汇率: §e1 §7点券 = §a" + String.format("%.0f", plugin.getShopConfig().getExchangeRate()) + " " + plugin.getShopConfig().getCurrencyName());
+
+                // 异步加载点券余额
+                final ItemStack btn = exchangeBtn;
+                final int exchangeSlot = targetSlot;
+                plugin.getPlayerPointsManager().getPointsAsync(player, points -> {
+                    plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                        if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
+                        lore.add("§7你的点券: §e" + points);
+                        lore.add("");
+                        lore.add("§a点击进行兑换");
+                        ItemUtil.setLore(btn, new ArrayList<>(lore));
+                        inventory.setItem(exchangeSlot, btn);
+                    });
+                });
+                ItemUtil.setLore(exchangeBtn, lore);
+                setItem(targetSlot, exchangeBtn, p -> {
+                    p.closeInventory();
+                    plugin.getExchangeSessionManager().startSession(p);
+                    p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    p.sendMessage("§6§l点券兑换");
+                    p.sendMessage("§7请输入要兑换的§e点券数量§7（输入'取消'取消）");
+                    p.sendMessage("§7当前汇率: §e1 §7点券 = §a" + String.format("%.0f", plugin.getShopConfig().getExchangeRate()) + " " + plugin.getShopConfig().getCurrencyName());
+                    p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                });
+            });
+        }
+
+        // 7. 出售按钮（如果启用）
         if (plugin.getShopConfig().isAllowSell() && plugin.getShopConfig().isSellSystemEnabled()) {
             buttonSetters.add(targetSlot -> {
                 ItemStack sellBtn = new ItemStack(Material.GOLD_INGOT);
@@ -158,7 +193,7 @@ public class ShopCategoryGUI extends AbstractGUI {
             });
         }
 
-        // 7. 下一页按钮（如果有）
+        // 8. 下一页按钮（如果有）
         if (endIndex < categories.size()) {
             buttonSetters.add(targetSlot -> {
                 ItemStack nextBtn = new ItemStack(Material.ARROW);

@@ -40,6 +40,13 @@ economy:
   # 可用变量: {amount} = 金额, {currency} = 货币名称
   currency-format: "{amount} {currency}"
 
+  # 点券兑换金币设置
+  exchange:
+    # 是否启用兑换功能（需要 PlayerPoints 插件）
+    enabled: true
+    # 汇率： 1 点券可2 金币
+    rate: 2.0
+
 # =============================
 # 点券系统设置 (PlayerPoints)
 # =============================

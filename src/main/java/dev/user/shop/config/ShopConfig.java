@@ -33,6 +33,8 @@ public class ShopConfig {
     private boolean economyEnabled;
     private String currencyName;
     private String currencyFormat;
+    private boolean exchangeEnabled;
+    private double exchangeRate;
 
     // 商店设置
     private boolean shopEnabled;
@@ -258,6 +260,8 @@ public class ShopConfig {
         this.economyEnabled = config.getBoolean("economy.enabled", true);
         this.currencyName = config.getString("economy.currency-name", "金币");
         this.currencyFormat = config.getString("economy.currency-format", "{amount} {currency}");
+        this.exchangeEnabled = config.getBoolean("economy.exchange.enabled", true);
+        this.exchangeRate = config.getDouble("economy.exchange.rate", 2.0);
 
         // 商店设置（优先从 shop.yml 读取，shop.yml 中在根级别）
         this.shopEnabled = getShopBoolean("enabled", true);
@@ -369,6 +373,9 @@ public class ShopConfig {
         return currencyFormat.replace("{amount}", String.format("%.2f", amount))
                            .replace("{currency}", currencyName);
     }
+
+    public boolean isExchangeEnabled() { return exchangeEnabled; }
+    public double getExchangeRate() { return exchangeRate; }
 
     public boolean isShopEnabled() { return shopEnabled; }
     public String getShopTitle() { return shopTitle; }

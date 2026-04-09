@@ -8,6 +8,7 @@ import dev.user.shop.database.BackupManager;
 import dev.user.shop.database.DatabaseManager;
 import dev.user.shop.database.DatabaseQueue;
 import dev.user.shop.economy.EconomyManager;
+import dev.user.shop.economy.ExchangeSessionManager;
 import dev.user.shop.economy.PlayerPointsManager;
 import dev.user.shop.shop.PurchaseManager;
 import dev.user.shop.gacha.GachaBlockManager;
@@ -16,6 +17,7 @@ import dev.user.shop.gacha.GachaManager;
 import dev.user.shop.gui.GUIManager;
 import dev.user.shop.listener.BlockInteractListener;
 import dev.user.shop.listener.ChunkListener;
+import dev.user.shop.listener.ExchangeChatListener;
 import dev.user.shop.listener.GUIListener;
 import dev.user.shop.shop.ShopManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -29,6 +31,7 @@ public class FoliaShopPlugin extends JavaPlugin {
     private DatabaseQueue databaseQueue;
     private EconomyManager economyManager;
     private PlayerPointsManager playerPointsManager;
+    private ExchangeSessionManager exchangeSessionManager;
     private volatile ShopManager shopManager;
     private volatile GachaManager gachaManager;
     private volatile GachaBlockManager gachaBlockManager;
@@ -87,6 +90,9 @@ public class FoliaShopPlugin extends JavaPlugin {
         // 初始化购买事务管理器
         this.purchaseManager = new PurchaseManager(this);
 
+        // 初始化兑换会话管理器
+        this.exchangeSessionManager = new ExchangeSessionManager(this);
+
         // 初始化备份管理器
         this.backupManager = new BackupManager(this);
 
@@ -115,6 +121,7 @@ public class FoliaShopPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(new BlockInteractListener(this), this);
         getServer().getPluginManager().registerEvents(new ChunkListener(this), this);
+        getServer().getPluginManager().registerEvents(new ExchangeChatListener(this), this);
 
         getLogger().info("FoliaShop 插件已启用！");
     }
@@ -123,6 +130,11 @@ public class FoliaShopPlugin extends JavaPlugin {
     public void onDisable() {
         // 先关闭所有打开的GUI（包括取消扭蛋动画）
         GUIManager.closeAllGUIs();
+
+        // 关闭兑换会话管理器
+        if (exchangeSessionManager != null) {
+            exchangeSessionManager.shutdown();
+        }
 
         // 关闭购买事务管理器
         if (purchaseManager != null) {
@@ -181,6 +193,10 @@ public class FoliaShopPlugin extends JavaPlugin {
         if (gachaDisplayManager != null) {
             gachaDisplayManager.reload();
         }
+        if (exchangeSessionManager != null) {
+            exchangeSessionManager.shutdown();
+        }
+        this.exchangeSessionManager = new ExchangeSessionManager(this);
     }
 
     public static FoliaShopPlugin getInstance() {
@@ -257,6 +273,10 @@ public class FoliaShopPlugin extends JavaPlugin {
 
     public PurchaseManager getPurchaseManager() {
         return purchaseManager;
+    }
+
+    public ExchangeSessionManager getExchangeSessionManager() {
+        return exchangeSessionManager;
     }
 
     public BackupManager getBackupManager() {

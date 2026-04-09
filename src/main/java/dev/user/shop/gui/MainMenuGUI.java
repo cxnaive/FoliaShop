@@ -6,6 +6,9 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainMenuGUI extends AbstractGUI {
 
     public MainMenuGUI(FoliaShopPlugin plugin, Player player) {
@@ -58,6 +61,38 @@ public class MainMenuGUI extends AbstractGUI {
             p.closeInventory();
             new TransactionHistoryGUI(plugin, p, this).open();
         });
+
+        // 点券兑换按钮（仅当兑换功能启用且 PlayerPoints 可用时显示）
+        if (plugin.getShopConfig().isExchangeEnabled() && plugin.getPlayerPointsManager().isEnabled()) {
+            ItemStack exchangeBtn = new ItemStack(Material.SUNFLOWER);
+            ItemUtil.setDisplayName(exchangeBtn, "§e§l点券兑换");
+            List<String> lore = new ArrayList<>();
+            lore.add("§7将点券兑换为" + plugin.getShopConfig().getCurrencyName());
+            lore.add("§7汇率: §e1 §7点券 = §a" + String.format("%.0f", plugin.getShopConfig().getExchangeRate()) + " " + plugin.getShopConfig().getCurrencyName());
+
+            // 异步加载点券余额
+            final ItemStack btn = exchangeBtn;
+            plugin.getPlayerPointsManager().getPointsAsync(player, points -> {
+                plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+                    if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
+                    lore.add("§7你的点券: §e" + points);
+                    lore.add("");
+                    lore.add("§a点击进行兑换");
+                    ItemUtil.setLore(btn, new ArrayList<>(lore));
+                    inventory.setItem(21, btn);
+                });
+            });
+            ItemUtil.setLore(exchangeBtn, lore);
+            setItem(21, exchangeBtn, p -> {
+                p.closeInventory();
+                plugin.getExchangeSessionManager().startSession(p);
+                p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                p.sendMessage("§6§l点券兑换");
+                p.sendMessage("§7请输入要兑换的§e点券数量§7（输入'取消'取消）");
+                p.sendMessage("§7当前汇率: §e1 §7点券 = §a" + String.format("%.0f", plugin.getShopConfig().getExchangeRate()) + " " + plugin.getShopConfig().getCurrencyName());
+                p.sendMessage("§e━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            });
+        }
 
         // 关闭按钮
         addCloseButton(22);
