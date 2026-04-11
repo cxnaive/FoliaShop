@@ -2,6 +2,7 @@ package dev.user.shop.listener;
 
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gui.AbstractGUI;
+import dev.user.shop.gui.GlobalShopSubmitGUI;
 import dev.user.shop.gui.GUIManager;
 import dev.user.shop.gui.SellGUI;
 import dev.user.shop.gui.ShopItemsGUI;
@@ -43,6 +44,12 @@ public class GUIListener implements Listener {
         // 处理出售界面的特殊逻辑
         if (gui instanceof SellGUI sellGUI) {
             handleSellGUIClick(event, player, sellGUI);
+            return;
+        }
+
+        // 处理全球商店上架界面的特殊逻辑（与出售界面相同模式）
+        if (gui instanceof GlobalShopSubmitGUI submitGUI) {
+            handleGlobalShopSubmitGUIClick(event, player, submitGUI);
             return;
         }
 
@@ -149,19 +156,26 @@ public class GUIListener implements Listener {
 
         // 出售界面允许拖放到出售格子
         if (gui instanceof SellGUI sellGUI) {
-            // 检查是否所有目标格子都是出售格子
             for (int slot : event.getRawSlots()) {
-                // 如果是顶部界面且不是出售格子，取消
                 if (slot < sellGUI.getInventory().getSize() && !sellGUI.isSellSlot(slot)) {
                     event.setCancelled(true);
                     return;
                 }
             }
-            // 允许拖放到出售格子
             return;
         }
 
-        // 其他GUI取消拖拽
+        // 全球商店上架界面允许拖放到上架格子
+        if (gui instanceof GlobalShopSubmitGUI submitGUI) {
+            for (int slot : event.getRawSlots()) {
+                if (slot < submitGUI.getInventory().getSize() && !submitGUI.isSubmitSlot(slot)) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+            return;
+        }
+
         event.setCancelled(true);
     }
 
@@ -174,6 +188,11 @@ public class GUIListener implements Listener {
             // 如果是出售界面，将格子里的物品返回给玩家
             if (gui instanceof SellGUI sellGUI) {
                 returnItemsToPlayer(player, sellGUI);
+            }
+
+            // 全球商店上架界面关闭时退回物品
+            if (gui instanceof GlobalShopSubmitGUI submitGUI) {
+                returnGlobalShopItemsToPlayer(player, submitGUI);
             }
 
             gui.onClose();
@@ -199,6 +218,92 @@ public class GUIListener implements Listener {
         }
 
         // 在玩家区域线程执行物品操作
+        player.getScheduler().execute(dev.user.shop.FoliaShopPlugin.getInstance(), () -> {
+            for (ItemStack item : itemsToReturn) {
+                java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+                if (!leftover.isEmpty()) {
+                    for (ItemStack drop : leftover.values()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                    }
+                }
+            }
+        }, null, 1L);
+    }
+
+    private void handleGlobalShopSubmitGUIClick(InventoryClickEvent event, Player player, GlobalShopSubmitGUI submitGUI) {
+        Inventory clickedInventory = event.getClickedInventory();
+        int slot = event.getSlot();
+        InventoryAction action = event.getAction();
+
+        // 点击顶部 GUI
+        if (clickedInventory == submitGUI.getInventory()) {
+            if (submitGUI.isSubmitSlot(slot)) {
+                ItemStack item = event.getCurrentItem();
+                if (item != null && item.getType().isItem()) {
+                    if (player.getInventory().firstEmpty() == -1) {
+                        player.sendMessage("§c背包已满！");
+                        event.setCancelled(true);
+                        return;
+                    }
+                    event.setCancelled(false);
+                }
+                return;
+            }
+            event.setCancelled(true);
+            submitGUI.handleClick(slot, player);
+            return;
+        }
+
+        // 点击底部背包
+        if (clickedInventory == player.getInventory()) {
+            ItemStack item = event.getCurrentItem();
+            if (item == null || !item.getType().isItem()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            boolean isPutAction = action == InventoryAction.MOVE_TO_OTHER_INVENTORY ||
+                                 action == InventoryAction.PLACE_ALL ||
+                                 action == InventoryAction.PLACE_ONE ||
+                                 action == InventoryAction.PLACE_SOME ||
+                                 action == InventoryAction.SWAP_WITH_CURSOR;
+
+            if (isPutAction) {
+                int emptySlot = -1;
+                for (int submitSlot : submitGUI.getSubmitSlots()) {
+                    if (submitGUI.getInventory().getItem(submitSlot) == null) {
+                        emptySlot = submitSlot;
+                        break;
+                    }
+                }
+
+                if (emptySlot == -1) {
+                    player.sendMessage("§c上架格子已满！");
+                    event.setCancelled(true);
+                    return;
+                }
+
+                if (action == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                    event.setCancelled(true);
+                    ItemStack clone = item.clone();
+                    submitGUI.getInventory().setItem(emptySlot, clone);
+                    player.getInventory().removeItem(item);
+                }
+            }
+        }
+    }
+
+    private void returnGlobalShopItemsToPlayer(Player player, GlobalShopSubmitGUI submitGUI) {
+        List<ItemStack> itemsToReturn = new ArrayList<>();
+        for (int slot : submitGUI.getSubmitSlots()) {
+            ItemStack item = submitGUI.getInventory().getItem(slot);
+            if (item != null && item.getType().isItem()) {
+                itemsToReturn.add(item);
+            }
+        }
+
+        if (itemsToReturn.isEmpty()) return;
+
         player.getScheduler().execute(dev.user.shop.FoliaShopPlugin.getInstance(), () -> {
             for (ItemStack item : itemsToReturn) {
                 java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);

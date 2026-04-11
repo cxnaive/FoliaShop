@@ -312,6 +312,59 @@ public class DatabaseManager {
 
             // 创建索引（H2和MySQL的索引语法略有不同）
             createIndexes(stmt, isMySQL);
+
+            // ========== 全球商店表 ==========
+
+            // 全球商店上架商品表
+            String gsIdColumn = isMySQL ? "id BIGINT AUTO_INCREMENT PRIMARY KEY" : "id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY";
+            String globalShopListingsTable = "CREATE TABLE IF NOT EXISTS global_shop_listings (" +
+                    gsIdColumn + "," +
+                    "    seller_uuid VARCHAR(36) NOT NULL," +
+                    "    seller_name VARCHAR(32) NOT NULL," +
+                    "    item_data BLOB NOT NULL," +
+                    "    item_key VARCHAR(128) NOT NULL," +
+                    "    item_display_name VARCHAR(256)," +
+                    "    amount INT NOT NULL DEFAULT 1," +
+                    "    price DECIMAL(18,2) NOT NULL," +
+                    "    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE'," +
+                    "    created_at BIGINT NOT NULL," +
+                    "    expire_at BIGINT NOT NULL" +
+                    ")";
+            stmt.execute(globalShopListingsTable);
+
+            // 全球商店待领取物品/收益表
+            String globalShopReturnsTable = "CREATE TABLE IF NOT EXISTS global_shop_returns (" +
+                    gsIdColumn + "," +
+                    "    owner_uuid VARCHAR(36) NOT NULL," +
+                    "    listing_id BIGINT," +
+                    "    item_data BLOB," +
+                    "    item_key VARCHAR(128)," +
+                    "    item_display_name VARCHAR(256)," +
+                    "    amount INT NOT NULL DEFAULT 0," +
+                    "    earnings DECIMAL(18,2) NOT NULL DEFAULT 0," +
+                    "    reason VARCHAR(16) NOT NULL DEFAULT 'SOLD'," +
+                    "    created_at BIGINT NOT NULL," +
+                    "    claimed BOOLEAN NOT NULL DEFAULT FALSE" +
+                    ")";
+            stmt.execute(globalShopReturnsTable);
+
+            // 全球商店交易记录表
+            String globalShopTransactionsTable = "CREATE TABLE IF NOT EXISTS global_shop_transactions (" +
+                    gsIdColumn + "," +
+                    "    buyer_uuid VARCHAR(36) NOT NULL," +
+                    "    buyer_name VARCHAR(32) NOT NULL," +
+                    "    seller_uuid VARCHAR(36) NOT NULL," +
+                    "    seller_name VARCHAR(32) NOT NULL," +
+                    "    listing_id BIGINT NOT NULL," +
+                    "    item_key VARCHAR(128) NOT NULL," +
+                    "    item_display_name VARCHAR(256)," +
+                    "    amount INT NOT NULL," +
+                    "    total_price DECIMAL(18,2) NOT NULL," +
+                    "    tax_amount DECIMAL(18,2) NOT NULL DEFAULT 0," +
+                    "    seller_earnings DECIMAL(18,2) NOT NULL DEFAULT 0," +
+                    "    timestamp BIGINT NOT NULL" +
+                    ")";
+            stmt.execute(globalShopTransactionsTable);
         }
     }
 
@@ -329,7 +382,18 @@ public class DatabaseManager {
             {"idx_pity_player", "gacha_pity", "player_uuid"},
             {"idx_block_world", "gacha_block_bindings", "world_uuid"},
             {"idx_block_machine", "gacha_block_bindings", "machine_id"},
-            {"idx_gacha_source", "gacha_records", "player_uuid, machine_id, source"}
+            {"idx_gacha_source", "gacha_records", "player_uuid, machine_id, source"},
+
+            // 全球商店索引
+            {"idx_gs_listing_seller", "global_shop_listings", "seller_uuid"},
+            {"idx_gs_listing_status", "global_shop_listings", "status"},
+            {"idx_gs_listing_expire", "global_shop_listings", "expire_at"},
+            {"idx_gs_return_owner", "global_shop_returns", "owner_uuid"},
+            {"idx_gs_return_claimed", "global_shop_returns", "owner_uuid, claimed"},
+            {"idx_gs_return_listing", "global_shop_returns", "listing_id"},
+            {"idx_gs_tx_buyer", "global_shop_transactions", "buyer_uuid"},
+            {"idx_gs_tx_seller", "global_shop_transactions", "seller_uuid"},
+            {"idx_gs_tx_time", "global_shop_transactions", "timestamp"}
         };
 
         for (String[] index : indexes) {

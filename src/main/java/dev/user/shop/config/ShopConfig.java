@@ -54,6 +54,14 @@ public class ShopConfig {
     // 扭蛋设置
     private boolean gachaEnabled;
 
+    // 全球商店设置
+    private boolean globalShopEnabled;
+    private double globalShopTaxRate;
+    private long globalShopRentalPeriodDays;
+    private double globalShopListingFee;
+    private int globalShopMaxListings;
+    private int globalShopExpiredRetainDays;
+
     // 展示实体设置
     private boolean displayEntityEnabled;
     private float displayEntityScale;
@@ -290,6 +298,14 @@ public class ShopConfig {
         // 扭蛋设置（优先从 gacha.yml 读取，gacha.yml 中在根级别）
         this.gachaEnabled = getGachaBoolean("enabled", true);
 
+        // 全球商店设置（仅从主配置读取）
+        this.globalShopEnabled = config.getBoolean("globalshop.enabled", true);
+        this.globalShopTaxRate = config.getDouble("globalshop.tax-rate", 0.05);
+        this.globalShopRentalPeriodDays = config.getLong("globalshop.rental-period-days", 7);
+        this.globalShopListingFee = config.getDouble("globalshop.listing-fee", 100.0);
+        this.globalShopMaxListings = config.getInt("globalshop.max-listings-per-player", 10);
+        this.globalShopExpiredRetainDays = config.getInt("globalshop.expired-retain-days", 30);
+
         // 展示实体设置（gacha.yml 中 display-entity 在根级别）
         this.displayEntityEnabled = getGachaBoolean("display-entity.enabled", true);
         this.displayEntityScale = (float) getGachaDouble("display-entity.scale", 0.8);
@@ -394,6 +410,15 @@ public class ShopConfig {
 
     public boolean isGachaEnabled() { return gachaEnabled; }
 
+    // 全球商店设置 Getters
+    public boolean isGlobalShopEnabled() { return globalShopEnabled; }
+    public double getGlobalShopTaxRate() { return globalShopTaxRate; }
+    public long getGlobalShopRentalPeriodDays() { return globalShopRentalPeriodDays; }
+    public double getGlobalShopListingFee() { return globalShopListingFee; }
+    public int getGlobalShopMaxListings() { return globalShopMaxListings; }
+    public int getGlobalShopExpiredRetainDays() { return globalShopExpiredRetainDays; }
+    public long getGlobalShopRentalPeriodMs() { return globalShopRentalPeriodDays * 24 * 60 * 60 * 1000L; }
+
     // 展示实体设置 Getters
     public boolean isDisplayEntityEnabled() { return displayEntityEnabled; }
     public float getDisplayEntityScale() { return displayEntityScale; }
@@ -425,6 +450,10 @@ public class ShopConfig {
             case "gacha-history" -> "抽奖记录";
             case "sell-menu" -> "出售物品";
             case "transaction-history" -> "交易记录";
+            case "globalshop" -> "全球商店";
+            case "globalshop-submit" -> "上架物品";
+            case "globalshop-returns" -> "待领取物品";
+            case "globalshop-manage" -> "我的上架";
             default -> "菜单";
         });
         return MessageUtil.convertMiniMessageToLegacy(title);

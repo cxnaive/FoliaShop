@@ -18,8 +18,11 @@ import dev.user.shop.gui.GUIManager;
 import dev.user.shop.listener.BlockInteractListener;
 import dev.user.shop.listener.ChunkListener;
 import dev.user.shop.listener.ExchangeChatListener;
+import dev.user.shop.listener.GlobalShopChatListener;
+import dev.user.shop.listener.GlobalShopJoinListener;
 import dev.user.shop.listener.GUIListener;
 import dev.user.shop.shop.ShopManager;
+import dev.user.shop.globalshop.GlobalShopManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FoliaShopPlugin extends JavaPlugin {
@@ -36,6 +39,7 @@ public class FoliaShopPlugin extends JavaPlugin {
     private volatile GachaManager gachaManager;
     private volatile GachaBlockManager gachaBlockManager;
     private volatile GachaDisplayManager gachaDisplayManager;
+    private volatile GlobalShopManager globalShopManager;
     private PurchaseManager purchaseManager;
     private BackupManager backupManager;
 
@@ -93,6 +97,9 @@ public class FoliaShopPlugin extends JavaPlugin {
         // 初始化兑换会话管理器
         this.exchangeSessionManager = new ExchangeSessionManager(this);
 
+        // 初始化全球商店管理器
+        this.globalShopManager = new GlobalShopManager(this);
+
         // 初始化备份管理器
         this.backupManager = new BackupManager(this);
 
@@ -122,6 +129,8 @@ public class FoliaShopPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockInteractListener(this), this);
         getServer().getPluginManager().registerEvents(new ChunkListener(this), this);
         getServer().getPluginManager().registerEvents(new ExchangeChatListener(this), this);
+        getServer().getPluginManager().registerEvents(new GlobalShopChatListener(this), this);
+        getServer().getPluginManager().registerEvents(new GlobalShopJoinListener(this), this);
 
         getLogger().info("FoliaShop 插件已启用！");
     }
@@ -134,6 +143,11 @@ public class FoliaShopPlugin extends JavaPlugin {
         // 关闭兑换会话管理器
         if (exchangeSessionManager != null) {
             exchangeSessionManager.shutdown();
+        }
+
+        // 关闭全球商店管理器
+        if (globalShopManager != null) {
+            globalShopManager.shutdown();
         }
 
         // 关闭购买事务管理器
@@ -197,6 +211,10 @@ public class FoliaShopPlugin extends JavaPlugin {
             exchangeSessionManager.shutdown();
         }
         this.exchangeSessionManager = new ExchangeSessionManager(this);
+        if (globalShopManager != null) {
+            globalShopManager.shutdown();
+        }
+        this.globalShopManager = new GlobalShopManager(this);
     }
 
     public static FoliaShopPlugin getInstance() {
@@ -277,6 +295,10 @@ public class FoliaShopPlugin extends JavaPlugin {
 
     public ExchangeSessionManager getExchangeSessionManager() {
         return exchangeSessionManager;
+    }
+
+    public GlobalShopManager getGlobalShopManager() {
+        return globalShopManager;
     }
 
     public BackupManager getBackupManager() {

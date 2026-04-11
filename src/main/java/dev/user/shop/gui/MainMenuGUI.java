@@ -94,6 +94,21 @@ public class MainMenuGUI extends AbstractGUI {
             });
         }
 
+        // 全球商店按钮（仅当功能启用且有权限时显示）
+        if (plugin.getShopConfig().isGlobalShopEnabled() && player.hasPermission("foliashop.globalshop.use")) {
+            ItemStack globalShopBtn = new ItemStack(Material.ENDER_CHEST);
+            ItemUtil.setDisplayName(globalShopBtn, "§d§l全球商店");
+            ItemUtil.setLore(globalShopBtn, java.util.Arrays.asList(
+                "§7玩家间自由交易市场",
+                "",
+                "§e浏览/上架/购买物品"
+            ));
+            setItem(20, globalShopBtn, p -> {
+                p.closeInventory();
+                new GlobalShopBrowseGUI(plugin, p).open();
+            });
+        }
+
         // 关闭按钮
         addCloseButton(22);
     }

@@ -87,6 +87,31 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 }
                 new dev.user.shop.gui.GachaMainGUI(plugin, player).open();
             }
+            case "globalshop" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
+                    return true;
+                }
+                if (!plugin.getShopConfig().isGlobalShopEnabled()) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("feature-disabled"));
+                    return true;
+                }
+                if (!player.hasPermission("foliashop.globalshop.use")) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("no-permission"));
+                    return true;
+                }
+                if (args.length >= 2) {
+                    String subArg = args[1].toLowerCase();
+                    switch (subArg) {
+                        case "sell", "submit" -> new dev.user.shop.gui.GlobalShopSubmitGUI(plugin, player).open();
+                        case "manage", "mylistings" -> new dev.user.shop.gui.GlobalShopManageGUI(plugin, player).open();
+                        case "returns", "claim" -> new dev.user.shop.gui.GlobalShopReturnsGUI(plugin, player).open();
+                        default -> new dev.user.shop.gui.GlobalShopBrowseGUI(plugin, player).open();
+                    }
+                } else {
+                    new dev.user.shop.gui.GlobalShopBrowseGUI(plugin, player).open();
+                }
+            }
             case "pick" -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
@@ -230,6 +255,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 completions.add("gacha");
                 completions.add("collect");
                 completions.add("pick");
+                completions.add("globalshop");
             }
             if (sender.hasPermission("foliashop.admin")) {
                 completions.add("reload");
@@ -246,6 +272,13 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             }
             return completions.stream()
                 .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
+                .toList();
+        }
+
+        // globalshop 命令的参数补全
+        if (args.length == 2 && args[0].equalsIgnoreCase("globalshop") && sender.hasPermission("foliashop.globalshop.use")) {
+            return List.of("sell", "manage", "returns").stream()
+                .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))
                 .toList();
         }
 
@@ -376,6 +409,10 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/foliashop §7- 打开主菜单");
         sender.sendMessage("§e/foliashop shop §7- 打开商店");
         sender.sendMessage("§e/foliashop gacha §7- 打开扭蛋");
+        sender.sendMessage("§e/foliashop globalshop §7- 打开全球商店");
+        sender.sendMessage("§e/foliashop globalshop sell §7- 上架物品");
+        sender.sendMessage("§e/foliashop globalshop manage §7- 我的上架");
+        sender.sendMessage("§e/foliashop globalshop returns §7- 待领取物品");
         sender.sendMessage("§e/foliashop collect §7- 打开收集兑换");
         sender.sendMessage("§e/foliashop collect claim <id> §7- 领取收集奖励");
         if (sender.hasPermission("foliashop.admin")) {

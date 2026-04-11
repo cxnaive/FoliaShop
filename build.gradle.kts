@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.user"
-version = "1.0.5"
+version = "1.1.0"
 
 repositories {
     mavenCentral()
@@ -33,13 +33,16 @@ dependencies {
     // PlayerPoints
     compileOnly("org.black_ixx:playerpoints:3.3.3")
 
-    // 数据库连接池和驱动
-    implementation("com.zaxxer:HikariCP:6.2.1")
-    implementation("com.h2database:h2:2.3.232")
-    implementation("com.mysql:mysql-connector-j:9.2.0")
+    // 数据库连接池和驱动 (由服务器通过 plugin.yml libraries 加载)
+    compileOnly("com.zaxxer:HikariCP:6.2.1")
+    compileOnly("com.h2database:h2:2.3.232")
+    compileOnly("com.mysql:mysql-connector-j:9.2.0")
 
-    // 序列化
-    implementation("com.google.code.gson:gson:2.12.1")
+    // 序列化 (由服务器通过 plugin.yml libraries 加载)
+    compileOnly("com.google.code.gson:gson:2.12.1")
+
+    // LZ4 压缩 (由服务器通过 plugin.yml libraries 加载)
+    compileOnly("org.lz4:lz4-java:1.8.0")
 }
 
 tasks.withType<JavaCompile> {
@@ -51,29 +54,6 @@ tasks.withType<JavaCompile> {
 tasks.shadowJar {
     archiveClassifier.set("")
     archiveFileName.set("folia_shop-${version}.jar")
-
-    // 重定位依赖包
-    relocate("org.h2", "dev.user.shop.libs.org.h2")
-    relocate("com.zaxxer", "dev.user.shop.libs.com.zaxxer")
-    relocate("com.mysql", "dev.user.shop.libs.com.mysql")
-    relocate("com.google.gson", "dev.user.shop.libs.com.google.gson")
-
-    // 排除不需要的文件
-    exclude("META-INF/*.SF")
-    exclude("META-INF/*.DSA")
-    exclude("META-INF/*.RSA")
-    exclude("META-INF/LICENSE*")
-    exclude("LICENSE*")
-
-    mergeServiceFiles {
-        include("META-INF/services/java.sql.Driver")
-    }
-
-    minimize {
-        exclude(dependency("com.h2database:h2:.*"))
-        exclude(dependency("com.mysql:mysql-connector-j:.*"))
-        exclude(dependency("com.zaxxer:HikariCP:.*"))
-    }
 }
 
 tasks.build {

@@ -86,6 +86,10 @@ gui:
     gacha-result: "<green>抽奖结果"
     gacha-history: "<aqua>抽奖记录"
     sell-menu: "<blue>出售物品"
+    globalshop: "<dark_purple>全球商店"
+    globalshop-submit: "<blue>上架物品"
+    globalshop-returns: "<gold>待领取物品"
+    globalshop-manage: "<green>我的上架"
 
   # 装饰物品（界面边框和按钮）
   decoration:
@@ -156,3 +160,27 @@ messages:
   collect-incomplete: "<red>收集未完成！进度: <yellow>{collected}<gray>/<yellow>{required}"
   collect-claim-success: "<green>✔ 成功领取收集奖励: <yellow>{name}"
   collect-claim-fail: "<red>领取失败，条件不满足或已领取过"
+
+# =============================
+# 全球商店设置 (玩家间交易)
+# =============================
+globalshop:
+  # 是否启用全球商店功能
+  enabled: false
+
+  # 交易税率 (0.05 = 5%, 0 = 免税)
+  # 卖家收益 = 售价 * (1 - 税率)
+  tax-rate: 0.05
+
+  # 上架租期（天数），到期后物品自动下架并进入卖家待领取列表
+  rental-period-days: 7
+
+  # 每次上架的租金费用（无论上架多少个物品）
+  # 0 = 免费
+  listing-fee: 100.0
+
+  # 每个玩家最大同时上架数量
+  max-listings-per-player: 10
+
+  # 过期物品保留天数（超过后自动清理数据库记录）
+  expired-retain-days: 30

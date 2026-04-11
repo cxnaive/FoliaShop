@@ -3,6 +3,14 @@ version: ${version}
 main: dev.user.shop.FoliaShopPlugin
 api-version: '1.21'
 folia-supported: true
+
+libraries:
+  - com.zaxxer:HikariCP:6.2.1
+  - com.h2database:h2:2.3.232
+  - com.mysql:mysql-connector-j:9.2.0
+  - com.google.code.gson:gson:2.12.1
+  - org.lz4:lz4-java:1.8.0
+
 depend: [XConomy, CraftEngine]
 
 commands:
@@ -33,6 +41,12 @@ permissions:
   foliashop.gacha.use:
     default: op
     description: 使用扭蛋功能
+  foliashop.globalshop.use:
+    default: true
+    description: 使用全球商店（浏览和购买）
+  foliashop.globalshop.sell:
+    default: true
+    description: 在全球商店上架物品
   foliashop.admin:
     default: op
     description: 管理员权限（重载配置、管理商品和奖池）
