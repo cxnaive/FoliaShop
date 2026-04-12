@@ -111,7 +111,10 @@ public class PurchaseManager {
         int amount = task.amount;
 
         // 计算总费用
-        double totalCost = shopItem.getBuyPrice() * amount;
+        double unitBuyPrice = shopItem.hasRandomBuyPrice()
+            ? dev.user.shop.util.PriceUtil.computeDailyPrice(task.playerUuid, shopItem.getId(), shopItem.getBuyPrice(), shopItem.getBuyPriceMax())
+            : shopItem.getBuyPrice();
+        double totalCost = unitBuyPrice * amount;
         int totalPoints = shopItem.getBuyPoints() * amount;
 
         Connection conn = null;
@@ -193,7 +196,7 @@ public class PurchaseManager {
             }
             // 调整实际购买数量
             if (actualAmount != amount) {
-                totalCost = shopItem.getBuyPrice() * actualAmount;
+                totalCost = unitBuyPrice * actualAmount;
                 totalPoints = shopItem.getBuyPoints() * actualAmount;
 
                 // 重新检查货币（因为数量变了）

@@ -103,9 +103,9 @@ categories:
 # =============================
 # 配置说明:
 # - item: 物品ID，支持 "minecraft:xxx" 或 "ce_namespace:item_id"
-# - buy-price: 购买价格（金币），0或负数表示不需要金币
+# - buy-price: 购买价格（金币），0或负数表示不需要金币，支持随机范围如 50~200
 # - buy-points: 购买所需点券（PlayerPoints），0表示不需要点券
-# - sell-price: 出售价格（金币），0或负数表示不可出售（出售不会返还点券）
+# - sell-price: 出售价格（金币），0或负数表示不可出售，支持随机范围如 25~100
 # - stock: 库存数量，-1表示无限库存
 # - category: 所属分类ID，支持子分类格式 "parent:child"（如 "building:blocks"）
 # - slot: 在分类GUI中的位置
@@ -121,6 +121,8 @@ categories:
 # 2. commands 可用于出售 VIP 权限、称号等非物品商品
 # 3. give-item: false 时，商品只执行命令不给予物品（适合纯命令商品）
 # 4. daily-limit 和 player-limit 可同时设置，玩家需要同时满足两个限制才能购买
+# 5. buy-price 和 sell-price 支持随机范围语法 "最低价~最高价"（如 50~200），
+#    价格对每个玩家每天固定，不同玩家/不同天价格不同
 #
 # NBT组件示例:
 #   components:
@@ -305,6 +307,15 @@ items:
     stock: -1
     category: "minerals"
     slot: 13
+
+  # 随机售价示例（每天对每个玩家的价格在范围内随机，但当天固定）
+  emerald:
+    item: "minecraft:emerald"
+    buy-price: 50~200
+    sell-price: 25~100
+    stock: -1
+    category: "minerals"
+    slot: 14
 
 # =============================
 # 拆分配置（可选）

@@ -3,6 +3,7 @@ package dev.user.shop.gui;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.shop.ShopItem;
 import dev.user.shop.util.ItemUtil;
+import dev.user.shop.util.PriceUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -213,7 +214,10 @@ public class SellGUI extends AbstractGUI {
         if (mode.equals("SHOP_ONLY") || mode.equals("ALL")) {
             ShopItem shopItem = plugin.getShopManager().findShopItemByStack(item);
             if (shopItem != null && shopItem.canSell()) {
-                return new SellPriceResult(shopItem.getSellPrice(), "商店", shopItem.getId());
+                double price = shopItem.hasRandomSellPrice()
+                    ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getSellPrice(), shopItem.getSellPriceMax())
+                    : shopItem.getSellPrice();
+                return new SellPriceResult(price, "商店", shopItem.getId());
             }
             // 如果是SHOP_ONLY模式且没有找到商店物品，直接返回0
             if (mode.equals("SHOP_ONLY")) {

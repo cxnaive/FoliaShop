@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.util.ItemUtil;
+import dev.user.shop.util.PriceUtil;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 
@@ -196,8 +197,27 @@ public class ShopManager {
             String itemKey = itemSection.getString("item");
             if (itemKey == null || itemKey.isEmpty()) continue;
 
-            double buyPrice = itemSection.getDouble("buy-price", 0);
-            double sellPrice = itemSection.getDouble("sell-price", 0);
+            double buyPrice, buyPriceMax;
+            Object buyPriceObj = itemSection.get("buy-price");
+            if (buyPriceObj instanceof String s && s.contains("~")) {
+                double[] range = PriceUtil.parsePriceRange(s);
+                buyPrice = range[0];
+                buyPriceMax = range[1];
+            } else {
+                buyPrice = itemSection.getDouble("buy-price", 0);
+                buyPriceMax = buyPrice;
+            }
+
+            double sellPrice, sellPriceMax;
+            Object sellPriceObj = itemSection.get("sell-price");
+            if (sellPriceObj instanceof String s && s.contains("~")) {
+                double[] range = PriceUtil.parsePriceRange(s);
+                sellPrice = range[0];
+                sellPriceMax = range[1];
+            } else {
+                sellPrice = itemSection.getDouble("sell-price", 0);
+                sellPriceMax = sellPrice;
+            }
             int buyPoints = itemSection.getInt("buy-points", 0);
             int stock = itemSection.getInt("stock", -1);
             String category = itemSection.getString("category", "misc");
@@ -217,7 +237,9 @@ public class ShopManager {
             if (existingItem != null) {
                 // 已有商品：更新配置（保留数据库中的库存）
                 existingItem.setBuyPrice(buyPrice);
+                existingItem.setBuyPriceMax(buyPriceMax);
                 existingItem.setSellPrice(sellPrice);
+                existingItem.setSellPriceMax(sellPriceMax);
                 existingItem.setBuyPoints(buyPoints);
                 existingItem.setCategory(category);
                 existingItem.setSlot(slot);
@@ -243,6 +265,8 @@ public class ShopManager {
             } else {
                 // 新商品：创建并保存
                 ShopItem shopItem = new ShopItem(id, itemKey, buyPrice, sellPrice, buyPoints, stock, category, slot, dailyLimit, components);
+                shopItem.setBuyPriceMax(buyPriceMax);
+                shopItem.setSellPriceMax(sellPriceMax);
                 shopItem.setPlayerLimit(playerLimit);
                 shopItem.setCommands(commands);
                 shopItem.setConditions(conditions);

@@ -14,7 +14,9 @@ public class ShopItem {
     private final String itemKey;
     private ItemStack displayItem;
     private double buyPrice;
+    private double buyPriceMax; // 购买价上限，> buyPrice 时启用随机价格
     private double sellPrice;
+    private double sellPriceMax; // 出售价上限，> sellPrice 时启用随机价格
     private int buyPoints; // 购买所需点券，0表示不需要
     private final AtomicInteger stock;
     private String category;
@@ -39,7 +41,9 @@ public class ShopItem {
         this.id = id;
         this.itemKey = itemKey;
         this.buyPrice = buyPrice;
+        this.buyPriceMax = buyPrice; // 默认固定价格
         this.sellPrice = sellPrice;
+        this.sellPriceMax = sellPrice; // 默认固定价格
         this.buyPoints = buyPoints;
         this.stock = new AtomicInteger(stock);
         this.category = category;
@@ -62,8 +66,16 @@ public class ShopItem {
     public double getBuyPrice() { return buyPrice; }
     public void setBuyPrice(double buyPrice) { this.buyPrice = buyPrice; }
 
+    public double getBuyPriceMax() { return buyPriceMax; }
+    public void setBuyPriceMax(double buyPriceMax) { this.buyPriceMax = buyPriceMax; }
+    public boolean hasRandomBuyPrice() { return buyPriceMax > buyPrice && buyPrice > 0; }
+
     public double getSellPrice() { return sellPrice; }
     public void setSellPrice(double sellPrice) { this.sellPrice = sellPrice; }
+
+    public double getSellPriceMax() { return sellPriceMax; }
+    public void setSellPriceMax(double sellPriceMax) { this.sellPriceMax = sellPriceMax; }
+    public boolean hasRandomSellPrice() { return sellPriceMax > sellPrice && sellPrice > 0; }
 
     public int getStock() { return stock.get(); }
     public void setStock(int stock) { this.stock.set(stock); }

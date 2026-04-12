@@ -5,6 +5,7 @@ import dev.user.shop.shop.ShopItem;
 import dev.user.shop.shop.ShopManager;
 import dev.user.shop.util.ItemUtil;
 import dev.user.shop.util.MessageUtil;
+import dev.user.shop.util.PriceUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -263,8 +264,14 @@ public class ShopItemsGUI extends AbstractGUI {
         // 价格信息
         if (shopItem.canBuy()) {
             StringBuilder priceStr = new StringBuilder();
-            if (shopItem.getBuyPrice() > 0) {
-                priceStr.append("§e").append(plugin.getShopConfig().formatCurrency(shopItem.getBuyPrice()));
+            double displayBuyPrice = shopItem.hasRandomBuyPrice()
+                ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getBuyPrice(), shopItem.getBuyPriceMax())
+                : shopItem.getBuyPrice();
+            if (displayBuyPrice > 0) {
+                priceStr.append("§e").append(plugin.getShopConfig().formatCurrency(displayBuyPrice));
+                if (shopItem.hasRandomBuyPrice()) {
+                    priceStr.append(" §7(每日随机)");
+                }
             }
             if (shopItem.requiresPoints()) {
                 if (priceStr.length() > 0) priceStr.append(" §7+ ");
@@ -274,7 +281,14 @@ public class ShopItemsGUI extends AbstractGUI {
         }
         // 只在系统回收启用时显示出售价格
         if (shopItem.canSell() && plugin.getShopConfig().isSellSystemEnabled()) {
-            shopLore.add("§7回收价格: §e" + plugin.getShopConfig().formatCurrency(shopItem.getSellPrice()));
+            double displaySellPrice = shopItem.hasRandomSellPrice()
+                ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getSellPrice(), shopItem.getSellPriceMax())
+                : shopItem.getSellPrice();
+            StringBuilder sellStr = new StringBuilder("§7回收价格: §e").append(plugin.getShopConfig().formatCurrency(displaySellPrice));
+            if (shopItem.hasRandomSellPrice()) {
+                sellStr.append(" §7(每日随机)");
+            }
+            shopLore.add(sellStr.toString());
         }
 
         // 库存信息
@@ -338,7 +352,10 @@ public class ShopItemsGUI extends AbstractGUI {
             return;
         }
 
-        double totalReward = shopItem.getSellPrice() * removed;
+        double unitSellPrice = shopItem.hasRandomSellPrice()
+            ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getSellPrice(), shopItem.getSellPriceMax())
+            : shopItem.getSellPrice();
+        double totalReward = unitSellPrice * removed;
         final int finalRemoved = removed;
 
         // 异步给予金钱
