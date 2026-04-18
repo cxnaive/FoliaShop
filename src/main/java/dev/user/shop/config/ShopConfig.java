@@ -47,9 +47,7 @@ public class ShopConfig {
 
     // 系统回收设置
     private boolean sellSystemEnabled;
-    private String sellSystemMode;
     private boolean addStockOnSell;
-    private Map<String, Double> customSellItems;
 
     // 扭蛋设置
     private boolean gachaEnabled;
@@ -282,18 +280,7 @@ public class ShopConfig {
 
         // 系统回收设置（优先从 shop.yml 读取，shop.yml 中在根级别）
         this.sellSystemEnabled = getShopBoolean("sell-system.enabled", true);
-        this.sellSystemMode = getShopString("sell-system.mode", "SHOP_ONLY").toUpperCase();
         this.addStockOnSell = getShopBoolean("sell-system.add-stock-on-sell", false);
-        this.customSellItems = new HashMap<>();
-        ConfigurationSection customItemsSection = getShopSection("sell-system.custom-items");
-        if (customItemsSection != null) {
-            for (String itemKey : customItemsSection.getKeys(false)) {
-                double price = customItemsSection.getDouble(itemKey, 0);
-                if (price > 0) {
-                    customSellItems.put(itemKey, price);
-                }
-            }
-        }
 
         // 扭蛋设置（优先从 gacha.yml 读取，gacha.yml 中在根级别）
         this.gachaEnabled = getGachaBoolean("enabled", true);
@@ -403,10 +390,7 @@ public class ShopConfig {
 
     // 系统回收设置 Getter
     public boolean isSellSystemEnabled() { return sellSystemEnabled; }
-    public String getSellSystemMode() { return sellSystemMode; }
     public boolean isAddStockOnSell() { return addStockOnSell; }
-    public Map<String, Double> getCustomSellItems() { return Collections.unmodifiableMap(customSellItems); }
-    public double getCustomSellPrice(String itemKey) { return customSellItems.getOrDefault(itemKey, 0.0); }
 
     public boolean isGachaEnabled() { return gachaEnabled; }
 

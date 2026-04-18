@@ -12,6 +12,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,20 +34,11 @@ public class SellGUI extends AbstractGUI {
         ItemStack info = new ItemStack(Material.PAPER);
         ItemUtil.setDisplayName(info, "§e§l出售说明");
 
-        String mode = plugin.getShopConfig().getSellSystemMode();
-        String modeDesc = switch (mode) {
-            case "SHOP_ONLY" -> "§7当前模式: §a仅回收商店物品";
-            case "CONFIG_ONLY" -> "§7当前模式: §a仅回收系统定义物品";
-            case "ALL" -> "§7当前模式: §a回收商店+系统定义物品";
-            default -> "§7当前模式: §a商店物品";
-        };
-
         ItemUtil.setLore(info, List.of(
             "§7将物品放入下方格子",
             "§7点击确认出售按钮出售",
             "",
-            modeDesc,
-            "§e系统只会收购有收购价格的物品"
+            "§7系统只会收购商店中有收购价的物品"
         ));
         setItem(4, info);
 
@@ -74,86 +66,153 @@ public class SellGUI extends AbstractGUI {
     }
 
     private void confirmSell(Player player) {
-        // 检查系统回收是否启用
         if (!plugin.getShopConfig().isSellSystemEnabled()) {
             player.sendMessage("§c系统回收功能已关闭！");
             return;
         }
 
-        double totalReward = 0;
-        String mode = plugin.getShopConfig().getSellSystemMode();
-
-        // 第一阶段：计算总价值并验证所有物品（不修改物品）
-        List<SellEntry> entriesToSell = new ArrayList<>();
+        // 第一阶段：计算总价值并收集所有可售条目
+        List<SellEntry> entries = new ArrayList<>();
+        Map<String, Double> categoryTotals = new LinkedHashMap<>();
         for (int slot : sellSlots) {
             ItemStack item = inventory.getItem(slot);
             if (item == null || item.getType() == Material.AIR) continue;
 
-            // 获取物品的回收价格
-            SellPriceResult result = getSellPrice(item, mode);
+            SellPriceResult result = getSellPrice(item);
             if (result.price <= 0) continue;
 
             int amount = item.getAmount();
             double reward = result.price * amount;
-
-            // 获取物品的实际ID用于记录
             String itemKey = ItemUtil.getItemKey(item);
 
-            entriesToSell.add(new SellEntry(slot, item.clone(), reward, result.source, result.shopItemId, itemKey));
-            totalReward += reward;
+            SellEntry entry = new SellEntry(slot, item.clone(), reward, result.source, result.shopItemId, itemKey, result.category);
+            entries.add(entry);
+
+            if (entry.category != null) {
+                categoryTotals.merge(entry.category, reward, Double::sum);
+            }
         }
 
-        if (entriesToSell.isEmpty() || totalReward <= 0) {
+        if (entries.isEmpty()) {
             player.sendMessage("§c没有可以出售的物品！");
             return;
         }
 
-        // 第二阶段：执行出售（原子性操作）
-        // 先清除所有要出售的物品格子
-        for (SellEntry entry : entriesToSell) {
-            // 双重检查物品是否还在且未改变
-            ItemStack currentItem = inventory.getItem(entry.slot);
-            if (currentItem == null || !currentItem.isSimilar(entry.originalItem)) {
-                player.sendMessage("§c出售失败：物品在确认期间发生变化，请重新放入物品！");
-                return;
-            }
+        // 快照完成：清空可售格子的物品，然后关闭 GUI
+        for (SellEntry entry : entries) {
             inventory.setItem(entry.slot, null);
         }
+        player.closeInventory();
+        player.sendMessage("§e正在处理出售请求...");
 
-        // 异步给予金钱
-        final double finalTotalReward = totalReward;
-        final List<SellEntry> finalEntriesToSell = new ArrayList<>(entriesToSell);
-        final int totalItems = entriesToSell.stream().mapToInt(e -> e.originalItem.getAmount()).sum();
+        // 第二阶段：异步预留分类出售额度
+        plugin.getShopManager().tryReserveCategorySellAmountsAsync(
+            player.getUniqueId(), categoryTotals,
+            reservedAmounts -> processReserveResult(player, entries, reservedAmounts, categoryTotals));
+    }
+
+    /**
+     * 异步预留回调：截断 + 返还被截断物品 + 提交存款
+     */
+    private void processReserveResult(Player player, List<SellEntry> entries,
+                                       Map<String, Double> reservedAmounts,
+                                       Map<String, Double> categoryTotals) {
+        if (!player.isOnline()) {
+            // 玩家已离线，回滚所有预留额度
+            Map<String, Double> toRollback = new HashMap<>();
+            for (Map.Entry<String, Double> entry : reservedAmounts.entrySet()) {
+                if (entry.getValue() > 0) {
+                    toRollback.put(entry.getKey(), entry.getValue());
+                }
+            }
+            if (!toRollback.isEmpty()) {
+                plugin.getShopManager().rollbackCategorySellAmounts(player.getUniqueId(), toRollback);
+            }
+            plugin.getLogger().warning("玩家 " + player.getName() + " 在出售处理期间下线，已回滚预留额度");
+            return;
+        }
+
+        // 第三阶段：根据预留额度按顺序截断物品
+        Map<String, Double> categoryAccumulated = new HashMap<>();
+        List<SellEntry> sellEntries = new ArrayList<>();
+        List<SellEntry> skippedEntries = new ArrayList<>();
+
+        for (SellEntry entry : entries) {
+            if (entry.category == null || !reservedAmounts.containsKey(entry.category)) {
+                sellEntries.add(entry);
+                continue;
+            }
+            double budget = reservedAmounts.get(entry.category);
+            double accumulated = categoryAccumulated.getOrDefault(entry.category, 0.0);
+            if (accumulated + entry.reward <= budget) {
+                sellEntries.add(entry);
+                categoryAccumulated.merge(entry.category, entry.reward, Double::sum);
+            } else {
+                skippedEntries.add(entry);
+            }
+        }
+
+        // 释放未使用的预留额度
+        Map<String, Double> excessReserved = new HashMap<>();
+        for (Map.Entry<String, Double> reserved : reservedAmounts.entrySet()) {
+            double used = categoryAccumulated.getOrDefault(reserved.getKey(), 0.0);
+            if (reserved.getValue() > used) {
+                excessReserved.put(reserved.getKey(), reserved.getValue() - used);
+            }
+        }
+        if (!excessReserved.isEmpty()) {
+            plugin.getShopManager().rollbackCategorySellAmounts(player.getUniqueId(), excessReserved);
+        }
+
+        // 返还被截断的物品
+        for (SellEntry skipped : skippedEntries) {
+            returnItemToPlayer(player, skipped.originalItem);
+            if (skipped.category != null && reservedAmounts.containsKey(skipped.category)) {
+                double budget = reservedAmounts.get(skipped.category);
+                double acc = categoryAccumulated.getOrDefault(skipped.category, 0.0);
+                double remaining = budget - acc;
+                player.sendMessage(String.format("§e分类 [%s] 今日出售额度不足，剩余 %.2f %s",
+                    skipped.category, remaining, plugin.getShopConfig().getCurrencyName()));
+            }
+        }
+
+        if (sellEntries.isEmpty()) {
+            player.sendMessage("§c今日出售额度已用完，明天再来吧！");
+            return;
+        }
+
+        // 第四阶段：执行异步存款
+        double totalReward = sellEntries.stream().mapToDouble(e -> e.reward).sum();
+        int totalItems = sellEntries.stream().mapToInt(e -> e.originalItem.getAmount()).sum();
 
         plugin.getEconomyManager().depositAsync(player, totalReward, success -> {
+            if (!player.isOnline()) return;
+
             if (!success) {
-                // 退款失败，将物品还给玩家
-                for (SellEntry entry : finalEntriesToSell) {
+                for (SellEntry entry : sellEntries) {
                     returnItemToPlayer(player, entry.originalItem);
                 }
                 player.sendMessage(Component.text("经济系统错误，出售已取消，物品已返还！").color(NamedTextColor.RED));
+                rollbackSellReserve(player, categoryAccumulated);
                 return;
             }
 
-            // 发送消息 - 批量出售显示总数量和物品种类
             Component sellMessage = plugin.getShopConfig().getComponent("sell-success-batch",
-                Map.of("count", String.valueOf(finalEntriesToSell.size()),
+                Map.of("count", String.valueOf(sellEntries.size()),
                        "total", String.valueOf(totalItems),
-                       "reward", String.format("%.2f", finalTotalReward),
+                       "reward", String.format("%.2f", totalReward),
                        "currency", plugin.getShopConfig().getCurrencyName()));
             player.sendMessage(sellMessage);
 
-            // 增加商店库存（如果是商店物品且配置允许）
             if (plugin.getShopConfig().isAddStockOnSell()) {
-                for (SellEntry entry : finalEntriesToSell) {
+                for (SellEntry entry : sellEntries) {
                     if (entry.shopItemId != null && !entry.shopItemId.isEmpty()) {
                         plugin.getShopManager().atomicAddStock(entry.shopItemId, entry.originalItem.getAmount());
                     }
                 }
             }
 
-            // 记录交易（使用实际物品ID）
-            for (SellEntry entry : finalEntriesToSell) {
+            for (SellEntry entry : sellEntries) {
                 plugin.getShopManager().logTransaction(
                     player.getUniqueId(), player.getName(),
                     entry.itemKey != null ? entry.itemKey : "unknown",
@@ -163,21 +222,36 @@ public class SellGUI extends AbstractGUI {
                     "SELL"
                 );
             }
-
-            player.closeInventory();
         });
+    }
+
+    /**
+     * 回退已预留的分类出售额度（出售失败时调用）
+     */
+    private void rollbackSellReserve(Player player, Map<String, Double> categoryAccumulated) {
+        Map<String, Double> toRollback = new HashMap<>();
+        for (Map.Entry<String, Double> entry : categoryAccumulated.entrySet()) {
+            if (entry.getValue() > 0) {
+                toRollback.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (!toRollback.isEmpty()) {
+            plugin.getShopManager().rollbackCategorySellAmounts(player.getUniqueId(), toRollback);
+        }
     }
 
     /**
      * 将物品返还给玩家（背包满了则掉落）
      */
     private void returnItemToPlayer(Player player, ItemStack item) {
-        java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
-        if (!leftover.isEmpty()) {
-            for (ItemStack drop : leftover.values()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+        player.getScheduler().execute(plugin, () -> {
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+            if (!leftover.isEmpty()) {
+                for (ItemStack drop : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                }
             }
-        }
+        }, null, 1L);
     }
 
     /**
@@ -188,51 +262,32 @@ public class SellGUI extends AbstractGUI {
         final ItemStack originalItem;
         final double reward;
         final String source;
-        final String shopItemId; // 关联的商店商品ID（如果是商店物品）
-        final String itemKey; // 物品的实际ID（用于交易记录）
+        final String shopItemId;
+        final String itemKey;
+        final String category;
 
-        SellEntry(int slot, ItemStack originalItem, double reward, String source, String shopItemId, String itemKey) {
+        SellEntry(int slot, ItemStack originalItem, double reward, String source, String shopItemId, String itemKey, String category) {
             this.slot = slot;
             this.originalItem = originalItem;
             this.reward = reward;
             this.source = source;
             this.shopItemId = shopItemId;
             this.itemKey = itemKey;
+            this.category = category;
         }
     }
 
     /**
-     * 获取物品的回收价格
-     * @param item 物品
-     * @param mode 回收模式 (SHOP_ONLY, CONFIG_ONLY, ALL)
-     * @return 价格结果
+     * 获取物品的回收价格（仅匹配商店物品）
      */
-    private SellPriceResult getSellPrice(ItemStack item, String mode) {
-        String itemKey = ItemUtil.getItemKey(item);
-
-        // SHOP_ONLY 或 ALL 模式：检查商店物品
-        if (mode.equals("SHOP_ONLY") || mode.equals("ALL")) {
-            ShopItem shopItem = plugin.getShopManager().findShopItemByStack(item);
-            if (shopItem != null && shopItem.canSell()) {
-                double price = shopItem.hasRandomSellPrice()
-                    ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getSellPrice(), shopItem.getSellPriceMax())
-                    : shopItem.getSellPrice();
-                return new SellPriceResult(price, "商店", shopItem.getId());
-            }
-            // 如果是SHOP_ONLY模式且没有找到商店物品，直接返回0
-            if (mode.equals("SHOP_ONLY")) {
-                return new SellPriceResult(0, null);
-            }
+    private SellPriceResult getSellPrice(ItemStack item) {
+        ShopItem shopItem = plugin.getShopManager().findShopItemByStack(item);
+        if (shopItem != null && shopItem.canSell()) {
+            double price = shopItem.hasRandomSellPrice()
+                ? PriceUtil.computeDailyPrice(player.getUniqueId(), shopItem.getId(), shopItem.getSellPrice(), shopItem.getSellPriceMax())
+                : shopItem.getSellPrice();
+            return new SellPriceResult(price, "商店", shopItem.getId(), shopItem.getCategory());
         }
-
-        // CONFIG_ONLY 或 ALL 模式：检查自定义回收物品
-        if (mode.equals("CONFIG_ONLY") || mode.equals("ALL")) {
-            double price = plugin.getShopConfig().getCustomSellPrice(itemKey);
-            if (price > 0) {
-                return new SellPriceResult(price, "系统回收");
-            }
-        }
-
         return new SellPriceResult(0, null);
     }
 
@@ -242,16 +297,18 @@ public class SellGUI extends AbstractGUI {
     private static class SellPriceResult {
         final double price;
         final String source;
-        final String shopItemId; // 关联的商店商品ID
+        final String shopItemId;
+        final String category;
 
-        SellPriceResult(double price, String source, String shopItemId) {
+        SellPriceResult(double price, String source, String shopItemId, String category) {
             this.price = price;
             this.source = source;
             this.shopItemId = shopItemId;
+            this.category = category;
         }
 
         SellPriceResult(double price, String source) {
-            this(price, source, null);
+            this(price, source, null, null);
         }
     }
 

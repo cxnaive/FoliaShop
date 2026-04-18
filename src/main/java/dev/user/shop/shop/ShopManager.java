@@ -151,6 +151,8 @@ public class ShopManager {
             String icon = catSection.getString("icon", "minecraft:chest");
             int slot = catSection.getInt("slot", 10);
             boolean enabled = catSection.getBoolean("enabled", true);
+            boolean sellOnly = catSection.getBoolean("sell-only", false);
+            double dailySellLimit = catSection.getDouble("daily-sell-limit", 0);
 
             // 加载子分类
             Map<String, SubCategory> subcategories = new LinkedHashMap<>();
@@ -168,13 +170,16 @@ public class ShopManager {
                 }
             }
 
-            ShopCategory category = new ShopCategory(key, name, icon, slot, enabled, subcategories);
+            ShopCategory category = new ShopCategory(key, name, icon, slot, enabled, sellOnly, dailySellLimit, subcategories);
             if (categories.containsKey(key)) {
                 plugin.getLogger().warning("分类 '" + key + "' 重复定义，后加载的配置将覆盖之前的");
             }
             categories.put(key, category);
             if (!enabled) {
                 plugin.getLogger().info("分类 '" + key + "' 已禁用，跳过显示");
+            }
+            if (sellOnly) {
+                plugin.getLogger().info("分类 '" + key + "' 为回收专用，不在商店显示");
             }
         }
     }
@@ -963,6 +968,7 @@ public class ShopManager {
         plugin.getDatabaseQueue().submit("cleanupOldData", conn -> {
             int deletedTransactions = 0;
             int deletedDailyLimits = 0;
+            int deletedCategorySellLimits = 0;
 
             // 清理交易记录
             try (PreparedStatement ps = conn.prepareStatement(
@@ -978,10 +984,17 @@ public class ShopManager {
                 deletedDailyLimits = ps.executeUpdate();
             }
 
-            return new int[]{deletedTransactions, deletedDailyLimits};
+            // 清理过期的分类每日出售限额记录
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM category_daily_sell_limits WHERE last_date < ?")) {
+                ps.setString(1, cutoffDate);
+                deletedCategorySellLimits = ps.executeUpdate();
+            }
+
+            return new int[]{deletedTransactions, deletedDailyLimits, deletedCategorySellLimits};
         }, callback, error -> {
             plugin.getLogger().warning("清理旧数据失败: " + error.getMessage());
-            callback.accept(new int[]{0, 0});
+            callback.accept(new int[]{0, 0, 0});
         });
     }
 
@@ -1085,6 +1098,219 @@ public class ShopManager {
             .collect(java.util.stream.Collectors.toList());
     }
 
+    public Collection<ShopCategory> getVisibleCategories() {
+        return categories.values().stream()
+            .filter(c -> c.isEnabled() && !c.isSellOnly())
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * 提取父分类ID（"building:blocks" → "building"）
+     */
+    private String resolveParentCategory(String categoryId) {
+        if (categoryId == null) return null;
+        int colon = categoryId.indexOf(':');
+        return colon >= 0 ? categoryId.substring(0, colon) : categoryId;
+    }
+
+    /**
+     * 获取分类的每日出售金币限额
+     * @return 限额，0表示无限制
+     */
+    public double getCategoryDailySellLimit(String categoryId) {
+        if (categoryId == null) return 0;
+        ShopCategory cat = categories.get(resolveParentCategory(categoryId));
+        if (cat == null) return 0;
+        return cat.getDailySellLimit();
+    }
+
+    /**
+     * 原子性预留分类每日出售额度（同步，防止多服TOCTOU竞态）
+     * 检查限额+写入新额度在同一事务中完成
+     *
+     * @param playerUuid 玩家UUID
+     * @param categoryTotals 分类ID → 请求预留的金币总额
+     * @return 分类ID → 实际预留的金币总额（可能小于请求值）
+     */
+    public Map<String, Double> tryReserveCategorySellAmountsSync(
+            java.util.UUID playerUuid,
+            Map<String, Double> categoryTotals) {
+
+        try (java.sql.Connection conn = plugin.getDatabaseManager().getConnection()) {
+            return doReserveCategorySellAmounts(conn, playerUuid, categoryTotals, plugin.getDatabaseManager().isMySQL());
+        } catch (java.sql.SQLException e) {
+            plugin.getLogger().warning("预留分类出售额度失败: " + e.getMessage());
+            Map<String, Double> result = new LinkedHashMap<>();
+            for (Map.Entry<String, Double> entry : categoryTotals.entrySet()) {
+                if (entry.getKey() != null) {
+                    result.put(entry.getKey(), getCategoryDailySellLimit(entry.getKey()) > 0 ? 0.0 : entry.getValue());
+                }
+            }
+            return result;
+        }
+    }
+
+    /**
+     * 原子性预留分类每日出售额度（异步版本，通过 DatabaseQueue 执行）
+     *
+     * @param playerUuid 玩家UUID
+     * @param categoryTotals 分类ID → 请求预留的金币总额
+     * @param callback 回调，接收 分类ID → 实际预留的金币总额（在全局区域线程执行）
+     */
+    public void tryReserveCategorySellAmountsAsync(
+            java.util.UUID playerUuid,
+            Map<String, Double> categoryTotals,
+            java.util.function.Consumer<Map<String, Double>> callback) {
+
+        boolean isMySQL = plugin.getDatabaseManager().isMySQL();
+        plugin.getDatabaseQueue().submit("reserveCategorySellAmounts", conn -> {
+            return doReserveCategorySellAmounts(conn, playerUuid, categoryTotals, isMySQL);
+        }, callback, error -> {
+            plugin.getLogger().warning("异步预留分类出售额度失败: " + error.getMessage());
+            Map<String, Double> result = new LinkedHashMap<>();
+            for (Map.Entry<String, Double> entry : categoryTotals.entrySet()) {
+                if (entry.getKey() != null) {
+                    result.put(entry.getKey(), getCategoryDailySellLimit(entry.getKey()) > 0 ? 0.0 : entry.getValue());
+                }
+            }
+            callback.accept(result);
+        });
+    }
+
+    /**
+     * 核心预留逻辑（在给定连接中执行事务）
+     * 注意：调用方需管理 autoCommit 和 commit/rollback
+     */
+    private Map<String, Double> doReserveCategorySellAmounts(
+            java.sql.Connection conn,
+            java.util.UUID playerUuid,
+            Map<String, Double> categoryTotals,
+            boolean isMySQL) throws java.sql.SQLException {
+
+        Map<String, Double> result = new LinkedHashMap<>();
+
+        // 过滤出有限额的分类
+        Map<String, Double> limitedRequests = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : categoryTotals.entrySet()) {
+            if (entry.getKey() != null && getCategoryDailySellLimit(entry.getKey()) > 0) {
+                limitedRequests.put(entry.getKey(), entry.getValue());
+            } else if (entry.getKey() != null) {
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        if (limitedRequests.isEmpty()) {
+            return result;
+        }
+
+        String today = java.time.LocalDate.now().toString();
+        conn.setAutoCommit(false);
+        try {
+            for (Map.Entry<String, Double> request : limitedRequests.entrySet()) {
+                String categoryId = request.getKey();
+                double requested = request.getValue();
+                String lookupId = resolveParentCategory(categoryId);
+                double limit = getCategoryDailySellLimit(categoryId);
+
+                String selectSql = isMySQL
+                    ? "SELECT sell_amount, last_date FROM category_daily_sell_limits WHERE player_uuid = ? AND category_id = ? FOR UPDATE"
+                    : "SELECT sell_amount, last_date FROM category_daily_sell_limits WHERE player_uuid = ? AND category_id = ?";
+                double currentAmount = 0;
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setString(1, playerUuid.toString());
+                    ps.setString(2, lookupId);
+                    java.sql.ResultSet rs = ps.executeQuery();
+                    if (rs.next() && today.equals(rs.getString("last_date"))) {
+                        currentAmount = rs.getDouble("sell_amount");
+                    }
+                }
+
+                double available = Math.max(0, limit - currentAmount);
+                double toReserve = Math.min(requested, available);
+                result.put(categoryId, toReserve);
+
+                if (toReserve > 0) {
+                    double newAmount = currentAmount + toReserve;
+                    String upsertSql;
+                    if (isMySQL) {
+                        upsertSql = "INSERT INTO category_daily_sell_limits (player_uuid, category_id, sell_amount, last_date) VALUES (?, ?, ?, ?) " +
+                                   "ON DUPLICATE KEY UPDATE sell_amount = ?, last_date = ?";
+                    } else {
+                        upsertSql = "MERGE INTO category_daily_sell_limits KEY(player_uuid, category_id) VALUES (?, ?, ?, ?)";
+                    }
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(upsertSql)) {
+                        ps.setString(1, playerUuid.toString());
+                        ps.setString(2, lookupId);
+                        ps.setDouble(3, newAmount);
+                        ps.setString(4, today);
+                        if (isMySQL) {
+                            ps.setDouble(5, newAmount);
+                            ps.setString(6, today);
+                        }
+                        ps.executeUpdate();
+                    }
+                }
+            }
+            conn.commit();
+            return result;
+        } catch (java.sql.SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+
+    /**
+     * 回退分类出售额度（出售失败时调用，如经济系统错误）
+     */
+    public void rollbackCategorySellAmounts(java.util.UUID playerUuid, Map<String, Double> amountsToRollback) {
+        if (amountsToRollback == null || amountsToRollback.isEmpty()) return;
+
+        plugin.getDatabaseQueue().submit("rollbackCategorySellAmounts", conn -> {
+            String today = java.time.LocalDate.now().toString();
+            boolean isMySQL = plugin.getDatabaseManager().isMySQL();
+
+            conn.setAutoCommit(false);
+            try {
+                for (Map.Entry<String, Double> entry : amountsToRollback.entrySet()) {
+                    String categoryId = entry.getKey();
+                    double rollbackAmount = entry.getValue();
+                    if (rollbackAmount <= 0) continue;
+
+                    String lookupId = resolveParentCategory(categoryId);
+
+                    String selectSql = isMySQL
+                        ? "SELECT sell_amount, last_date FROM category_daily_sell_limits WHERE player_uuid = ? AND category_id = ? FOR UPDATE"
+                        : "SELECT sell_amount, last_date FROM category_daily_sell_limits WHERE player_uuid = ? AND category_id = ?";
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                        ps.setString(1, playerUuid.toString());
+                        ps.setString(2, lookupId);
+                        java.sql.ResultSet rs = ps.executeQuery();
+                        if (rs.next() && today.equals(rs.getString("last_date"))) {
+                            double current = rs.getDouble("sell_amount");
+                            double newAmount = Math.max(0, current - rollbackAmount);
+                            String updateSql = "UPDATE category_daily_sell_limits SET sell_amount = ? WHERE player_uuid = ? AND category_id = ?";
+                            try (java.sql.PreparedStatement ups = conn.prepareStatement(updateSql)) {
+                                ups.setDouble(1, newAmount);
+                                ups.setString(2, playerUuid.toString());
+                                ups.setString(3, lookupId);
+                                ups.executeUpdate();
+                            }
+                        }
+                    }
+                }
+                conn.commit();
+                return null;
+            } catch (java.sql.SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        });
+    }
+
     /**
      * 获取指定父分类的子分类列表
      */
@@ -1125,18 +1351,30 @@ public class ShopManager {
         private final String icon;
         private final int slot;
         private final boolean enabled;
+        private final boolean sellOnly;
+        private final double dailySellLimit;
         private final Map<String, SubCategory> subcategories;
 
         public ShopCategory(String id, String name, String icon, int slot, Map<String, SubCategory> subcategories) {
-            this(id, name, icon, slot, true, subcategories);
+            this(id, name, icon, slot, true, false, 0, subcategories);
         }
 
         public ShopCategory(String id, String name, String icon, int slot, boolean enabled, Map<String, SubCategory> subcategories) {
+            this(id, name, icon, slot, enabled, false, 0, subcategories);
+        }
+
+        public ShopCategory(String id, String name, String icon, int slot, boolean enabled, boolean sellOnly, Map<String, SubCategory> subcategories) {
+            this(id, name, icon, slot, enabled, sellOnly, 0, subcategories);
+        }
+
+        public ShopCategory(String id, String name, String icon, int slot, boolean enabled, boolean sellOnly, double dailySellLimit, Map<String, SubCategory> subcategories) {
             this.id = id;
             this.name = name;
             this.icon = icon;
             this.slot = slot;
             this.enabled = enabled;
+            this.sellOnly = sellOnly;
+            this.dailySellLimit = dailySellLimit;
             this.subcategories = subcategories != null ? subcategories : new LinkedHashMap<>();
         }
 
@@ -1145,6 +1383,9 @@ public class ShopManager {
         public String getIcon() { return icon; }
         public int getSlot() { return slot; }
         public boolean isEnabled() { return enabled; }
+        public boolean isSellOnly() { return sellOnly; }
+        public double getDailySellLimit() { return dailySellLimit; }
+        public boolean hasDailySellLimit() { return dailySellLimit > 0; }
         public Map<String, SubCategory> getSubcategories() { return subcategories; }
         public boolean hasSubcategories() { return !subcategories.isEmpty(); }
     }

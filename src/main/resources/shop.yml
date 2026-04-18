@@ -31,25 +31,8 @@ daily-buy-limit: 0
 sell-system:
   # 是否启用系统回收功能（/shop sell 命令）
   enabled: true
-  # 回收模式:
-  # - SHOP_ONLY: 只回收商店中已定义的物品（按商店配置的sell-price）
-  # - CONFIG_ONLY: 只回收下方custom-items中定义的物品
-  # - ALL: 同时支持SHOP_ONLY和CONFIG_ONLY的物品回收
-  mode: "ALL"
   # 回收物品是否增加商店库存
   add-stock-on-sell: false
-  # 自定义回收物品列表
-  custom-items:
-    minecraft:cobblestone: 0.5
-    minecraft:stone: 1.0
-    minecraft:dirt: 0.1
-    minecraft:sand: 0.3
-    minecraft:oak_log: 2.0
-    minecraft:wheat: 1.5
-    minecraft:coal: 8.0
-    minecraft:raw_iron: 15.0
-    minecraft:raw_gold: 25.0
-    minecraft:diamond: 80.0
 
 # =============================
 # 商品分类设置
@@ -63,6 +46,7 @@ sell-system:
 #     icon: "minecraft:bricks"
 #     slot: 10
 #     enabled: true        # 是否启用该分类（默认 true），设为 false 则不在商店中显示
+#     daily-sell-limit: 5000.0  # 每日出售金币限额（0=无限制），限制玩家每天通过系统回收出售该分类物品获得的金币总额
 #     subcategories:
 #       blocks:
 #         name: "建筑方块"
@@ -72,6 +56,13 @@ sell-system:
 #         name: "装饰方块"
 #         icon: "minecraft:flower_pot"
 #         slot: 12
+#
+# 回收专用分类示例（不在商店显示，但物品可通过系统回收出售）:
+#   sell_only:
+#     name: "回收专用"
+#     icon: "minecraft:hopper"
+#     slot: 0
+#     sell-only: true      # 设为 true 则该分类不出现在商店，但其中的物品可通过 /shop sell 回收
 #
 # 商品使用子分类时，category 格式为 "父分类:子分类"，如:
 #   category: "building:blocks"

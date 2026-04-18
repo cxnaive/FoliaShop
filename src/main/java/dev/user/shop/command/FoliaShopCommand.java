@@ -502,6 +502,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
         plugin.getShopManager().cleanupOldData(days, result -> {
             int deletedTransactions = result[0];
             int deletedDailyLimits = result[1];
+            int deletedCategorySellLimits = result.length > 2 ? result[2] : 0;
 
             // 清理扭蛋记录
             plugin.getGachaManager().cleanupOldRecords(finalDays, deletedGacha -> {
@@ -509,6 +510,9 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§7清理范围: §e" + finalDays + " 天以前的数据");
                 sender.sendMessage("§7交易记录: §e" + deletedTransactions + " §7条已删除");
                 sender.sendMessage("§7过期购买计数: §e" + deletedDailyLimits + " §7条已删除");
+                if (deletedCategorySellLimits > 0) {
+                    sender.sendMessage("§7过期出售限额: §e" + deletedCategorySellLimits + " §7条已删除");
+                }
                 sender.sendMessage("§7抽奖记录: §e" + deletedGacha + " §7条已删除");
                 sender.sendMessage("§a========================");
             });

@@ -260,6 +260,16 @@ public class DatabaseManager {
                     ")";
             stmt.execute(playerItemLimitsTable);
 
+            // 分类每日出售金币限额表
+            String categoryDailySellLimitsTable = "CREATE TABLE IF NOT EXISTS category_daily_sell_limits (" +
+                    "    player_uuid VARCHAR(36) NOT NULL," +
+                    "    category_id VARCHAR(64) NOT NULL," +
+                    "    sell_amount DECIMAL(18,2) DEFAULT 0," +
+                    "    last_date VARCHAR(10) NOT NULL," +
+                    "    PRIMARY KEY (player_uuid, category_id)" +
+                    ")";
+            stmt.execute(categoryDailySellLimitsTable);
+
             // 扭蛋保底计数表（软保底，单段计数）
             String pityCounterTable = "CREATE TABLE IF NOT EXISTS gacha_pity (" +
                     "    player_uuid VARCHAR(36) NOT NULL," +

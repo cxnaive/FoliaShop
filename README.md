@@ -9,16 +9,19 @@
 
 ### 系统商店
 - 🛒 支持购买和出售物品
-- 📂 商品分类管理
+- 📂 商品分类管理（支持子分类）
 - 📦 库存系统（支持无限库存）
 - 🔧 支持 CraftEngine 自定义物品（CE物品）
 - 📜 交易记录（玩家可查询最近20次）
 - ⏰ **每日购买限额**（每个物品独立配置）
 - 🔒 **玩家终身限购**（每个物品独立配置）
+- 💰 **分类每日出售限额**（按分类限制每日出售获得的金币总额）
+- 🏷️ **出售专用分类**（配置 `sell-only: true`，不在商店显示但可出售）
 - 💎 **PlayerPoints 点券支付**（支持金币+点券混合支付）
 - 🏷️ **NBT 组件支持**（附魔、自定义名称、Lore、自定义数据）
 - ⚡ **纯命令商品**（给予权限、执行命令，可不给予物品）
 - 🎲 **随机价格**（每日每玩家固定随机定价，`"100~200"` 格式）
+- ⚡ **异步出售流程**（不阻塞游戏线程，Folia 友好）
 
 ### 扭蛋系统
 - 🎰 多扭蛋机支持
@@ -62,7 +65,7 @@
 
 ## 🚀 安装
 
-1. 下载最新版本的 `folia_shop-1.1.0.jar`
+1. 下载最新版本的 `folia_shop-1.2.0.jar`
 2. 将 JAR 文件放入服务器的 `plugins` 文件夹
 3. 重启服务器或加载插件
 4. 编辑 `plugins/FoliaShop/config.yml` 配置数据库连接
@@ -169,6 +172,7 @@ foliashop.admin:        # 管理员权限（编辑商店、重载配置等）
 - 交易记录
 - 抽奖记录
 - 过期购买计数
+- 过期分类出售额度
 
 ### 数据库备份/恢复
 管理员可以使用备份命令导出和恢复数据库：
@@ -314,14 +318,15 @@ categories:
     name: "建筑材料"
     icon: "minecraft:bricks"
     slot: 10
-    enabled: true    # 可选，设为 false 则不显示
-  # 支持子分类:
-  # building:
-  #   subcategories:
-  #     blocks:
-  #       name: "建筑方块"
-  #       icon: "minecraft:stone"
-  #       slot: 11
+    enabled: true         # 可选，设为 false 则不显示
+    sell-only: false      # 可选，设为 true 则仅在出售界面可用
+    daily-sell-limit: 0   # 每日出售金币限额（0=无限制）
+    # 支持子分类:
+    # subcategories:
+    #   blocks:
+    #     name: "建筑方块"
+    #     icon: "minecraft:stone"
+    #     slot: 11
 
 # 商品列表
 items:
@@ -353,6 +358,21 @@ items:
     category: "minerals"
     slot: 11
 ```
+
+**分类字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 分类显示名称 |
+| `icon` | string | 分类图标物品ID |
+| `slot` | int | GUI中的位置 |
+| `enabled` | bool | 是否启用（默认true） |
+| `sell-only` | bool | 出售专用，不在商店显示（默认false） |
+| `daily-sell-limit` | double | 每日出售金币限额，0=无限制（默认0） |
+| `subcategories` | section | 子分类配置（可选） |
+
+> **注意**：`daily-sell-limit` 定义在父分类级别，子分类的物品共享父分类的限额。
+> 例如 `building` 分类限额 5000，则 `building:blocks` 和 `building:decor` 下的物品出售总额共受 5000 限制。
 
 **商品字段说明：**
 
@@ -496,7 +516,7 @@ machines:
 ./gradlew shadowJar
 ```
 
-构建后的 JAR 文件位于 `build/libs/folia_shop-1.1.0.jar`
+构建后的 JAR 文件位于 `build/libs/folia_shop-1.2.0.jar`
 
 ## 🏗️ 项目结构
 

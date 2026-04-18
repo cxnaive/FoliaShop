@@ -18,7 +18,7 @@ public class ShopCategoryGUI extends AbstractGUI {
 
     public ShopCategoryGUI(FoliaShopPlugin plugin, Player player) {
         super(plugin, player, plugin.getShopConfig().getShopTitle(), 54);
-        this.categories = new ArrayList<>(plugin.getShopManager().getAllCategories());
+        this.categories = new ArrayList<>(plugin.getShopManager().getVisibleCategories());
     }
 
     @Override
@@ -173,18 +173,8 @@ public class ShopCategoryGUI extends AbstractGUI {
                 ItemStack sellBtn = new ItemStack(Material.GOLD_INGOT);
                 ItemUtil.setDisplayName(sellBtn, "§6§l出售物品");
 
-                String mode = plugin.getShopConfig().getSellSystemMode();
-                String modeDesc = switch (mode) {
-                    case "SHOP_ONLY" -> "§7模式: §a商店物品回收";
-                    case "CONFIG_ONLY" -> "§7模式: §a系统回收";
-                    case "ALL" -> "§7模式: §a商店+系统回收";
-                    default -> "§7模式: §a商店回收";
-                };
-
                 ItemUtil.setLore(sellBtn, java.util.Arrays.asList(
-                    "§7点击出售背包中的物品",
-                    "",
-                    modeDesc
+                    "§7点击出售背包中的物品"
                 ));
                 setItem(targetSlot, sellBtn, p -> {
                     p.closeInventory();
