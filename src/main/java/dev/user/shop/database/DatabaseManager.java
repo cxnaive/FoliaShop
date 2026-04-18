@@ -69,9 +69,9 @@ public class DatabaseManager {
         String password = plugin.getShopConfig().getMysqlPassword();
         int poolSize = plugin.getShopConfig().getMysqlPoolSize();
 
-        // 手动注册 MySQL 驱动（使用重定位后的类名）
+        // 手动注册 MySQL 驱动（libraries 由服务端加载，使用原始类名）
         try {
-            Driver mysqlDriver = (Driver) Class.forName("dev.user.shop.libs.com.mysql.cj.jdbc.Driver", true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
+            Driver mysqlDriver = (Driver) Class.forName("com.mysql.cj.jdbc.Driver", true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
             DriverManager.registerDriver(new DriverShim(mysqlDriver));
         } catch (Exception e) {
             plugin.getLogger().warning("MySQL 驱动注册失败（可能已注册）: " + e.getMessage());
@@ -86,7 +86,7 @@ public class DatabaseManager {
         config.setConnectionTimeout(10000);
         config.setIdleTimeout(600000);
         config.setMaxLifetime(1800000);
-        config.setDriverClassName("dev.user.shop.libs.com.mysql.cj.jdbc.Driver");
+        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
 
         dataSource = new HikariDataSource(config);
     }
@@ -99,9 +99,9 @@ public class DatabaseManager {
             dataFolder.mkdirs();
         }
 
-        // 手动注册 H2 驱动（使用重定位后的类名）
+        // 手动注册 H2 驱动（libraries 由服务端加载，使用原始类名）
         try {
-            Driver h2Driver = (Driver) Class.forName("dev.user.shop.libs.org.h2.Driver", true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
+            Driver h2Driver = (Driver) Class.forName("org.h2.Driver", true, plugin.getClass().getClassLoader()).getDeclaredConstructor().newInstance();
             DriverManager.registerDriver(new DriverShim(h2Driver));
         } catch (Exception e) {
             plugin.getLogger().warning("H2 驱动注册失败（可能已注册）: " + e.getMessage());
@@ -116,7 +116,7 @@ public class DatabaseManager {
         config.setPassword("");
         config.setMaximumPoolSize(5);
         config.setMinimumIdle(1);
-        config.setDriverClassName("dev.user.shop.libs.org.h2.Driver");
+        config.setDriverClassName("org.h2.Driver");
         // 连接测试查询，确保连接可用
         config.setConnectionTestQuery("SELECT 1");
 
@@ -298,21 +298,6 @@ public class DatabaseManager {
                     ")";
             stmt.execute(collectionTable);
 
-            // 数据库迁移：添加缺失的 display_entity_uuid 列
-            migrateAddDisplayEntityUuidColumn(conn);
-
-            // 数据库迁移：添加缺失的 outdated 列
-            migrateAddOutdatedColumn(conn);
-
-            // 数据库迁移：给 gacha_records 添加 source 列
-            migrateAddSourceColumn(conn);
-
-            // 数据库迁移：软保底表结构迁移（从多段硬保底到单段软保底）
-            migratePityTableToSoftPity(conn);
-
-            // 创建索引（H2和MySQL的索引语法略有不同）
-            createIndexes(stmt, isMySQL);
-
             // ========== 全球商店表 ==========
 
             // 全球商店上架商品表
@@ -365,6 +350,15 @@ public class DatabaseManager {
                     "    timestamp BIGINT NOT NULL" +
                     ")";
             stmt.execute(globalShopTransactionsTable);
+
+            // 数据库迁移
+            migrateAddDisplayEntityUuidColumn(conn);
+            migrateAddOutdatedColumn(conn);
+            migrateAddSourceColumn(conn);
+            migratePityTableToSoftPity(conn);
+
+            // 创建索引
+            createIndexes(stmt, isMySQL);
         }
     }
 
