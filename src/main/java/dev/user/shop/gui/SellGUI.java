@@ -132,10 +132,9 @@ public class SellGUI extends AbstractGUI {
             return;
         }
 
-        // 第三阶段：根据预留额度按顺序截断物品
+        // 第三阶段：贪心拆分 — 按顺序尽量多卖，超限时拆分堆叠
         Map<String, Double> categoryAccumulated = new HashMap<>();
         List<SellEntry> sellEntries = new ArrayList<>();
-        List<SellEntry> skippedEntries = new ArrayList<>();
 
         for (SellEntry entry : entries) {
             if (entry.category == null || !reservedAmounts.containsKey(entry.category)) {
@@ -144,11 +143,39 @@ public class SellGUI extends AbstractGUI {
             }
             double budget = reservedAmounts.get(entry.category);
             double accumulated = categoryAccumulated.getOrDefault(entry.category, 0.0);
-            if (accumulated + entry.reward <= budget) {
+            double remaining = budget - accumulated;
+
+            if (remaining <= 0) {
+                returnItemToPlayer(player, entry.originalItem);
+                continue;
+            }
+
+            double pricePerUnit = entry.reward / entry.originalItem.getAmount();
+
+            if (entry.reward <= remaining) {
                 sellEntries.add(entry);
                 categoryAccumulated.merge(entry.category, entry.reward, Double::sum);
             } else {
-                skippedEntries.add(entry);
+                int maxAffordable = (int) (remaining / pricePerUnit);
+                if (maxAffordable <= 0) {
+                    returnItemToPlayer(player, entry.originalItem);
+                    continue;
+                }
+                ItemStack soldItem = entry.originalItem.clone();
+                soldItem.setAmount(maxAffordable);
+                double actualReward = pricePerUnit * maxAffordable;
+
+                SellEntry splitEntry = new SellEntry(entry.slot, soldItem, actualReward,
+                    entry.source, entry.shopItemId, entry.itemKey, entry.category);
+                sellEntries.add(splitEntry);
+                categoryAccumulated.merge(entry.category, actualReward, Double::sum);
+
+                int returnAmount = entry.originalItem.getAmount() - maxAffordable;
+                if (returnAmount > 0) {
+                    ItemStack returnItem = entry.originalItem.clone();
+                    returnItem.setAmount(returnAmount);
+                    returnItemToPlayer(player, returnItem);
+                }
             }
         }
 
@@ -164,17 +191,7 @@ public class SellGUI extends AbstractGUI {
             plugin.getShopManager().rollbackCategorySellAmounts(player.getUniqueId(), excessReserved);
         }
 
-        // 返还被截断的物品
-        for (SellEntry skipped : skippedEntries) {
-            returnItemToPlayer(player, skipped.originalItem);
-            if (skipped.category != null && reservedAmounts.containsKey(skipped.category)) {
-                double budget = reservedAmounts.get(skipped.category);
-                double acc = categoryAccumulated.getOrDefault(skipped.category, 0.0);
-                double remaining = budget - acc;
-                player.sendMessage(String.format("§e分类 [%s] 今日出售额度不足，剩余 %.2f %s",
-                    skipped.category, remaining, plugin.getShopConfig().getCurrencyName()));
-            }
-        }
+        // 返还被截断的物品（贪心循环中已处理拆分，此处无需额外操作）
 
         if (sellEntries.isEmpty()) {
             player.sendMessage("§c今日出售额度已用完，明天再来吧！");

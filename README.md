@@ -80,6 +80,7 @@
 |------|------|------|
 | `/foliashop` | 打开主菜单 | `foliashop.use` |
 | `/foliashop shop` | 打开系统商店 | `foliashop.shop.use` |
+| `/foliashop sell` | 打开出售界面 | `foliashop.shop.sell` |
 | `/foliashop gacha` | 打开扭蛋界面 | `foliashop.gacha.use` |
 | `/foliashop globalshop` | 打开全球商店 | `foliashop.globalshop.use` |
 | `/foliashop globalshop sell` | 上架物品到全球商店 | `foliashop.globalshop.sell` |

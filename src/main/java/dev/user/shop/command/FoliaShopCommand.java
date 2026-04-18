@@ -72,6 +72,21 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
                 }
                 new dev.user.shop.gui.ShopCategoryGUI(plugin, player).open();
             }
+            case "sell" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
+                    return true;
+                }
+                if (!plugin.getShopConfig().isAllowSell() || !plugin.getShopConfig().isSellSystemEnabled()) {
+                    player.sendMessage("§c系统回收功能未启用！");
+                    return true;
+                }
+                if (!player.hasPermission("foliashop.shop.sell")) {
+                    player.sendMessage(plugin.getShopConfig().getComponent("no-permission"));
+                    return true;
+                }
+                new dev.user.shop.gui.SellGUI(plugin, player).open();
+            }
             case "gacha" -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage(Component.text("此命令只能由玩家执行。").color(NamedTextColor.RED));
@@ -252,6 +267,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
             completions.add("help");
             if (sender.hasPermission("foliashop.use")) {
                 completions.add("shop");
+                completions.add("sell");
                 completions.add("gacha");
                 completions.add("collect");
                 completions.add("pick");
@@ -408,6 +424,7 @@ public class FoliaShopCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§6========== FoliaShop 帮助 ==========");
         sender.sendMessage("§e/foliashop §7- 打开主菜单");
         sender.sendMessage("§e/foliashop shop §7- 打开商店");
+        sender.sendMessage("§e/foliashop sell §7- 打开出售界面");
         sender.sendMessage("§e/foliashop gacha §7- 打开扭蛋");
         sender.sendMessage("§e/foliashop globalshop §7- 打开全球商店");
         sender.sendMessage("§e/foliashop globalshop sell §7- 上架物品");
