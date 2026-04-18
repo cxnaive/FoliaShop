@@ -304,13 +304,7 @@ daily-buy-limit: 0            # 全局每日购买限制（0=无限制）
 # 系统回收设置
 sell-system:
   enabled: true
-  # 模式: SHOP_ONLY（只回收商店物品）, CONFIG_ONLY（只回收自定义列表）, ALL（两者都支持）
-  mode: "ALL"
   add-stock-on-sell: false    # 回收物品是否增加商店库存
-  # 自定义回收物品列表（物品ID: 价格）
-  custom-items:
-    minecraft:cobblestone: 0.5
-    minecraft:diamond: 80.0
 
 # 商品分类
 categories:
