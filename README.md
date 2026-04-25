@@ -65,7 +65,7 @@
 
 ## 🚀 安装
 
-1. 下载最新版本的 `folia_shop-1.2.0.jar`
+1. 下载最新版本的 `folia_shop-1.2.1.jar`
 2. 将 JAR 文件放入服务器的 `plugins` 文件夹
 3. 重启服务器或加载插件
 4. 编辑 `plugins/FoliaShop/config.yml` 配置数据库连接
@@ -511,7 +511,7 @@ machines:
 ./gradlew shadowJar
 ```
 
-构建后的 JAR 文件位于 `build/libs/folia_shop-1.2.0.jar`
+构建后的 JAR 文件位于 `build/libs/folia_shop-1.2.1.jar`
 
 ## 🏗️ 项目结构
 
