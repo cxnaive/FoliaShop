@@ -115,6 +115,91 @@ gui:
       material: "minecraft:red_wool"
       name: "<red><bold>✘ 取消"
 
+    # 通用图标
+    info:
+      material: "minecraft:paper"
+      name: ""
+    page-info:
+      material: "minecraft:paper"
+      name: ""
+    empty:
+      material: "minecraft:barrier"
+      name: ""
+    sell:
+      material: "minecraft:gold_ingot"
+      name: "<gold>出售物品"
+    history:
+      material: "minecraft:book"
+      name: "<aqua>交易记录"
+    exchange:
+      material: "minecraft:sunflower"
+      name: "<yellow>点券兑换"
+    delete:
+      material: "minecraft:tnt"
+      name: "<red>删除"
+    save:
+      material: "minecraft:emerald_block"
+      name: "<green>保存"
+    reset:
+      material: "minecraft:book"
+      name: "<yellow>重置"
+
+    # 主菜单
+    shop:
+      material: "minecraft:emerald"
+      name: "<green>系统商店"
+    gacha:
+      material: "minecraft:nether_star"
+      name: "<gold>扭蛋中心"
+    globalshop:
+      material: "minecraft:ender_chest"
+      name: "<dark_purple>全球商店"
+
+    # 库存编辑
+    unlimited:
+      material: "minecraft:nether_star"
+      name: ""
+    increase:
+      material: "minecraft:lime_wool"
+      name: ""
+    decrease:
+      material: "minecraft:red_wool"
+      name: ""
+    clear-stock:
+      material: "minecraft:barrier"
+      name: ""
+
+    # 交易记录
+    buy-icon:
+      material: "minecraft:lime_stained_glass_pane"
+      name: ""
+    sell-icon:
+      material: "minecraft:red_stained_glass_pane"
+      name: ""
+    other-icon:
+      material: "minecraft:gray_stained_glass_pane"
+      name: ""
+
+    # 全球商店
+    manage:
+      material: "minecraft:chest"
+      name: ""
+    returns:
+      material: "minecraft:hopper"
+      name: ""
+    submit:
+      material: "minecraft:lime_dye"
+      name: ""
+    claim-all:
+      material: "minecraft:gold_ingot"
+      name: ""
+    money:
+      material: "minecraft:sunflower"
+      name: ""
+    item-fallback:
+      material: "minecraft:chest"
+      name: ""
+
 # =============================
 # 消息设置
 # 支持 MiniMessage 格式:

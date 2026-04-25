@@ -38,7 +38,7 @@ public class GlobalShopBrowseGUI extends AbstractGUI {
                 if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
 
                 if (listings.isEmpty() && page == 0) {
-                    ItemStack emptyInfo = new ItemStack(Material.BARRIER);
+                    ItemStack emptyInfo = createDecorItem("empty", Material.BARRIER);
                     ItemUtil.setDisplayName(emptyInfo, "§7暂无商品上架");
                     setItem(22, emptyInfo);
                 } else {
@@ -109,18 +109,18 @@ public class GlobalShopBrowseGUI extends AbstractGUI {
         }
 
         // 页码指示
-        ItemStack pageInfo = new ItemStack(Material.PAPER);
+        ItemStack pageInfo = createDecorItem("page-info", Material.PAPER);
         ItemUtil.setDisplayName(pageInfo, "§7第 §e" + (page + 1) + " §7页");
         setItem(49, pageInfo);
 
         // 我的上架
-        ItemStack manageBtn = new ItemStack(Material.CHEST);
+        ItemStack manageBtn = createDecorItem("manage", Material.CHEST);
         ItemUtil.setDisplayName(manageBtn, "§e我的上架");
         ItemUtil.setLore(manageBtn, List.of("§7点击查看你上架的物品"));
         setItem(50, manageBtn, p -> new GlobalShopManageGUI(plugin, p).open());
 
         // 待领取
-        ItemStack returnsBtn = new ItemStack(Material.HOPPER);
+        ItemStack returnsBtn = createDecorItem("returns", Material.HOPPER);
         ItemUtil.setDisplayName(returnsBtn, "§6待领取");
         ItemUtil.setLore(returnsBtn, List.of("§7查看待领取的物品和收益"));
         setItem(51, returnsBtn, p -> new GlobalShopReturnsGUI(plugin, p).open());

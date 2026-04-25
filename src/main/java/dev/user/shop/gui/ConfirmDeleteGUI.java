@@ -25,10 +25,10 @@ public class ConfirmDeleteGUI extends AbstractGUI {
 
     @Override
     protected void initialize() {
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
 
         // 警告图标
-        ItemStack warningItem = new ItemStack(Material.TNT);
+        ItemStack warningItem = createDecorItem("delete", Material.TNT);
         ItemUtil.setDisplayName(warningItem, "§4§l警告: 即将删除物品");
         ItemUtil.setLore(warningItem, List.of(
             "",
@@ -44,7 +44,7 @@ public class ConfirmDeleteGUI extends AbstractGUI {
         setItem(13, warningItem);
 
         // 确认删除按钮
-        ItemStack confirmBtn = new ItemStack(Material.LIME_WOOL);
+        ItemStack confirmBtn = createDecorItem("confirm", Material.LIME_WOOL);
         ItemUtil.setDisplayName(confirmBtn, "§a§l确认删除");
         ItemUtil.setLore(confirmBtn, List.of(
             "§7点击确认删除该物品",
@@ -58,7 +58,7 @@ public class ConfirmDeleteGUI extends AbstractGUI {
         });
 
         // 取消按钮
-        ItemStack cancelBtn = new ItemStack(Material.RED_WOOL);
+        ItemStack cancelBtn = createDecorItem("cancel", Material.RED_WOOL);
         ItemUtil.setDisplayName(cancelBtn, "§c§l取消");
         ItemUtil.setLore(cancelBtn, List.of(
             "§7点击取消删除操作",

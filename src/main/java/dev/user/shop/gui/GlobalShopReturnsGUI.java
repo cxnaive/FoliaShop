@@ -38,7 +38,7 @@ public class GlobalShopReturnsGUI extends AbstractGUI {
                 if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
 
                 if (entries.isEmpty()) {
-                    ItemStack emptyInfo = new ItemStack(Material.BARRIER);
+                    ItemStack emptyInfo = createDecorItem("empty", Material.BARRIER);
                     ItemUtil.setDisplayName(emptyInfo, "§7暂无待领取物品");
                     setItem(22, emptyInfo);
                 } else {
@@ -74,11 +74,11 @@ public class GlobalShopReturnsGUI extends AbstractGUI {
                 display = display.clone();
                 display.setAmount(Math.min(entry.getAmount(), 64));
             } else {
-                display = new ItemStack(Material.BARRIER);
+                display = createDecorItem("empty", Material.BARRIER);
             }
         } else {
             // 纯收益条目
-            display = new ItemStack(Material.SUNFLOWER);
+            display = createDecorItem("money", Material.SUNFLOWER);
             ItemUtil.setDisplayName(display, "§6§l出售收益");
         }
 
@@ -149,7 +149,7 @@ public class GlobalShopReturnsGUI extends AbstractGUI {
         addBackButton(45, () -> new GlobalShopBrowseGUI(plugin, player).open());
 
         // 领取全部收益按钮
-        ItemStack claimAllBtn = new ItemStack(Material.GOLD_INGOT);
+        ItemStack claimAllBtn = createDecorItem("claim-all", Material.GOLD_INGOT);
         ItemUtil.setDisplayName(claimAllBtn, "§6§l领取全部收益");
         ItemUtil.setLore(claimAllBtn, List.of("§7一键领取所有待领取收益"));
         setItem(48, claimAllBtn, p -> {
@@ -167,7 +167,7 @@ public class GlobalShopReturnsGUI extends AbstractGUI {
         });
 
         // 页码指示
-        ItemStack pageInfo = new ItemStack(Material.PAPER);
+        ItemStack pageInfo = createDecorItem("page-info", Material.PAPER);
         ItemUtil.setDisplayName(pageInfo, "§7第 §e" + (page + 1) + " §7页");
         setItem(49, pageInfo);
 

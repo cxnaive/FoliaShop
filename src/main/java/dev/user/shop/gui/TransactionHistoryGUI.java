@@ -21,10 +21,10 @@ public class TransactionHistoryGUI extends AbstractGUI {
 
     @Override
     protected void initialize() {
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
 
         // 标题
-        ItemStack titleItem = new ItemStack(Material.BOOK);
+        ItemStack titleItem = createDecorItem("history", Material.BOOK);
         ItemUtil.setDisplayName(titleItem, "§6§l交易记录");
         ItemUtil.setLore(titleItem, List.of(
             "§7显示最近20条交易记录",
@@ -37,7 +37,7 @@ public class TransactionHistoryGUI extends AbstractGUI {
         // 异步加载交易记录
         plugin.getShopManager().getPlayerTransactions(player.getUniqueId(), records -> {
             if (records.isEmpty()) {
-                ItemStack emptyItem = new ItemStack(Material.BARRIER);
+                ItemStack emptyItem = createDecorItem("empty", Material.BARRIER);
                 ItemUtil.setDisplayName(emptyItem, "§c暂无交易记录");
                 setItem(13, emptyItem);
                 return;
@@ -66,9 +66,9 @@ public class TransactionHistoryGUI extends AbstractGUI {
     }
 
     private ItemStack createRecordItem(ShopManager.TransactionRecord record) {
-        Material material = record.isBuy() ? Material.LIME_STAINED_GLASS_PANE :
-                           record.isSell() ? Material.RED_STAINED_GLASS_PANE :
-                           Material.GRAY_STAINED_GLASS_PANE;
+        Material material = record.isBuy() ? getDecorMaterial("buy-icon", Material.LIME_STAINED_GLASS_PANE) :
+                           record.isSell() ? getDecorMaterial("sell-icon", Material.RED_STAINED_GLASS_PANE) :
+                           getDecorMaterial("other-icon", Material.GRAY_STAINED_GLASS_PANE);
 
         ItemStack item = new ItemStack(material);
 

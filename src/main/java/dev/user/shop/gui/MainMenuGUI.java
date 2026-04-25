@@ -17,11 +17,11 @@ public class MainMenuGUI extends AbstractGUI {
 
     @Override
     protected void initialize() {
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
 
         // 商店按钮（需要功能启用且有权限）
         if (plugin.getShopConfig().isShopEnabled() && player.hasPermission("foliashop.shop.use")) {
-            ItemStack shopBtn = new ItemStack(Material.EMERALD);
+            ItemStack shopBtn = createDecorItem("shop", Material.EMERALD);
             ItemUtil.setDisplayName(shopBtn, "§a§l系统商店");
             ItemUtil.setLore(shopBtn, java.util.Arrays.asList(
                 "§7点击打开系统商店",
@@ -36,7 +36,7 @@ public class MainMenuGUI extends AbstractGUI {
 
         // 扭蛋按钮（需要功能启用且有权限）
         if (plugin.getShopConfig().isGachaEnabled() && player.hasPermission("foliashop.gacha.use")) {
-            ItemStack gachaBtn = new ItemStack(Material.NETHER_STAR);
+            ItemStack gachaBtn = createDecorItem("gacha", Material.NETHER_STAR);
             ItemUtil.setDisplayName(gachaBtn, "§6§l扭蛋中心");
             ItemUtil.setLore(gachaBtn, java.util.Arrays.asList(
                 "§7点击打开扭蛋中心",
@@ -50,7 +50,7 @@ public class MainMenuGUI extends AbstractGUI {
         }
 
         // 交易记录按钮
-        ItemStack historyBtn = new ItemStack(Material.BOOK);
+        ItemStack historyBtn = createDecorItem("history", Material.BOOK);
         ItemUtil.setDisplayName(historyBtn, "§b§l交易记录");
         ItemUtil.setLore(historyBtn, java.util.Arrays.asList(
             "§7查看最近的交易记录",
@@ -64,7 +64,7 @@ public class MainMenuGUI extends AbstractGUI {
 
         // 点券兑换按钮（仅当兑换功能启用且 PlayerPoints 可用时显示）
         if (plugin.getShopConfig().isExchangeEnabled() && plugin.getPlayerPointsManager().isEnabled()) {
-            ItemStack exchangeBtn = new ItemStack(Material.SUNFLOWER);
+            ItemStack exchangeBtn = createDecorItem("exchange", Material.SUNFLOWER);
             ItemUtil.setDisplayName(exchangeBtn, "§e§l点券兑换");
             List<String> lore = new ArrayList<>();
             lore.add("§7将点券兑换为" + plugin.getShopConfig().getCurrencyName());
@@ -96,7 +96,7 @@ public class MainMenuGUI extends AbstractGUI {
 
         // 全球商店按钮（仅当功能启用且有权限时显示）
         if (plugin.getShopConfig().isGlobalShopEnabled() && player.hasPermission("foliashop.globalshop.use")) {
-            ItemStack globalShopBtn = new ItemStack(Material.ENDER_CHEST);
+            ItemStack globalShopBtn = createDecorItem("globalshop", Material.ENDER_CHEST);
             ItemUtil.setDisplayName(globalShopBtn, "§d§l全球商店");
             ItemUtil.setLore(globalShopBtn, java.util.Arrays.asList(
                 "§7玩家间自由交易市场",

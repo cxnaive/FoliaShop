@@ -37,7 +37,7 @@ public class GlobalShopManageGUI extends AbstractGUI {
                 if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
 
                 if (listings.isEmpty() && page == 0) {
-                    ItemStack emptyInfo = new ItemStack(Material.BARRIER);
+                    ItemStack emptyInfo = createDecorItem("empty", Material.BARRIER);
                     ItemUtil.setDisplayName(emptyInfo, "§7暂无上架物品");
                     setItem(22, emptyInfo);
                 } else {
@@ -91,13 +91,13 @@ public class GlobalShopManageGUI extends AbstractGUI {
         addBackButton(45, () -> new GlobalShopBrowseGUI(plugin, player).open());
 
         // 上架新物品
-        ItemStack submitBtn = new ItemStack(Material.LIME_DYE);
+        ItemStack submitBtn = createDecorItem("submit", Material.LIME_DYE);
         ItemUtil.setDisplayName(submitBtn, "§a§l上架新物品");
         ItemUtil.setLore(submitBtn, List.of("§7点击上架新物品"));
         setItem(48, submitBtn, p -> new GlobalShopSubmitGUI(plugin, p).open());
 
         // 页码指示
-        ItemStack pageInfo = new ItemStack(Material.PAPER);
+        ItemStack pageInfo = createDecorItem("page-info", Material.PAPER);
         ItemUtil.setDisplayName(pageInfo, "§7第 §e" + (page + 1) + " §7页");
         setItem(49, pageInfo);
 

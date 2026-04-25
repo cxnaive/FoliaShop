@@ -28,10 +28,10 @@ public class SellGUI extends AbstractGUI {
     @Override
     protected void initialize() {
         // 填充边框
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
 
         // 显示提示信息
-        ItemStack info = new ItemStack(Material.PAPER);
+        ItemStack info = createDecorItem("info", Material.PAPER);
         ItemUtil.setDisplayName(info, "§e§l出售说明");
 
         ItemUtil.setLore(info, List.of(
@@ -53,7 +53,7 @@ public class SellGUI extends AbstractGUI {
         }
 
         // 确认出售按钮 (底部中间 slot 49)
-        ItemStack confirm = new ItemStack(Material.LIME_WOOL);
+        ItemStack confirm = createDecorItem("confirm", Material.LIME_WOOL);
         ItemUtil.setDisplayName(confirm, "§a§l确认出售");
         ItemUtil.setLore(confirm, List.of(
             "§7点击出售格子中的所有物品",

@@ -26,7 +26,7 @@ public class ShopCategoryGUI extends AbstractGUI {
         // 确保页码不会小于0
         if (page < 0) page = 0;
 
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
 
         // 每页显示的分类数量 (排除边框和导航按钮)
         int itemsPerPage = 28; // 4行 x 7列
@@ -78,7 +78,7 @@ public class ShopCategoryGUI extends AbstractGUI {
         // 1. 上一页按钮（如果有）
         if (page > 0) {
             buttonSetters.add(targetSlot -> {
-                ItemStack prevBtn = new ItemStack(Material.ARROW);
+                ItemStack prevBtn = createDecorItem("prev-page", Material.ARROW);
                 ItemUtil.setDisplayName(prevBtn, "§e§l上一页");
                 ItemUtil.setLore(prevBtn, java.util.List.of("§7点击返回上一页"));
                 setItem(targetSlot, prevBtn, p -> {
@@ -92,7 +92,7 @@ public class ShopCategoryGUI extends AbstractGUI {
 
         // 2. 交易记录按钮
         buttonSetters.add(targetSlot -> {
-            ItemStack historyBtn = new ItemStack(Material.BOOK);
+            ItemStack historyBtn = createDecorItem("history", Material.BOOK);
             ItemUtil.setDisplayName(historyBtn, "§b§l交易记录");
             ItemUtil.setLore(historyBtn, java.util.List.of(
                 "§7点击查看最近20条交易记录",
@@ -108,14 +108,14 @@ public class ShopCategoryGUI extends AbstractGUI {
 
         // 3. 关闭按钮
         buttonSetters.add(targetSlot -> {
-            ItemStack closeBtn = new ItemStack(Material.BARRIER);
+            ItemStack closeBtn = createDecorItem("close", Material.BARRIER);
             ItemUtil.setDisplayName(closeBtn, "§c§l关闭");
             setItem(targetSlot, closeBtn, Player::closeInventory);
         });
 
         // 4. 返回主菜单按钮
         buttonSetters.add(targetSlot -> {
-            ItemStack backBtn = new ItemStack(Material.ARROW);
+            ItemStack backBtn = createDecorItem("back", Material.ARROW);
             ItemUtil.setDisplayName(backBtn, "§e§l返回主菜单");
             ItemUtil.setLore(backBtn, java.util.List.of("§7点击返回主菜单"));
             setItem(targetSlot, backBtn, p -> {
@@ -126,7 +126,7 @@ public class ShopCategoryGUI extends AbstractGUI {
 
         // 5. 页码指示器
         buttonSetters.add(targetSlot -> {
-            ItemStack pageInfo = new ItemStack(Material.PAPER);
+            ItemStack pageInfo = createDecorItem("page-info", Material.PAPER);
             ItemUtil.setDisplayName(pageInfo, "§e§l第 " + (page + 1) + "/" + totalPages + " 页");
             ItemUtil.setLore(pageInfo, java.util.List.of("§7共 " + categories.size() + " 个分类"));
             setItem(targetSlot, pageInfo, null);
@@ -135,7 +135,7 @@ public class ShopCategoryGUI extends AbstractGUI {
         // 6. 点券兑换按钮（如果启用）
         if (plugin.getShopConfig().isExchangeEnabled() && plugin.getPlayerPointsManager().isEnabled()) {
             buttonSetters.add(targetSlot -> {
-                ItemStack exchangeBtn = new ItemStack(Material.SUNFLOWER);
+                ItemStack exchangeBtn = createDecorItem("exchange", Material.SUNFLOWER);
                 ItemUtil.setDisplayName(exchangeBtn, "§e§l点券兑换");
                 List<String> lore = new ArrayList<>();
                 lore.add("§7将点券兑换为" + plugin.getShopConfig().getCurrencyName());
@@ -170,7 +170,7 @@ public class ShopCategoryGUI extends AbstractGUI {
         // 7. 出售按钮（如果启用）
         if (plugin.getShopConfig().isAllowSell() && plugin.getShopConfig().isSellSystemEnabled()) {
             buttonSetters.add(targetSlot -> {
-                ItemStack sellBtn = new ItemStack(Material.GOLD_INGOT);
+                ItemStack sellBtn = createDecorItem("sell", Material.GOLD_INGOT);
                 ItemUtil.setDisplayName(sellBtn, "§6§l出售物品");
 
                 ItemUtil.setLore(sellBtn, java.util.Arrays.asList(
@@ -186,7 +186,7 @@ public class ShopCategoryGUI extends AbstractGUI {
         // 8. 下一页按钮（如果有）
         if (endIndex < categories.size()) {
             buttonSetters.add(targetSlot -> {
-                ItemStack nextBtn = new ItemStack(Material.ARROW);
+                ItemStack nextBtn = createDecorItem("next-page", Material.ARROW);
                 ItemUtil.setDisplayName(nextBtn, "§e§l下一页");
                 ItemUtil.setLore(nextBtn, java.util.List.of("§7点击查看更多分类"));
                 setItem(targetSlot, nextBtn, p -> {

@@ -119,6 +119,22 @@ public abstract class AbstractGUI implements InventoryHolder {
         setItem(slot, backBtn, p -> onBack.run());
     }
 
+    protected ItemStack createDecorItem(String key, Material fallback) {
+        var decor = plugin.getShopConfig().getGUIDecoration(key);
+        if (decor != null) {
+            return new ItemStack(decor.getBukkitMaterial());
+        }
+        return new ItemStack(fallback);
+    }
+
+    protected Material getDecorMaterial(String key, Material fallback) {
+        var decor = plugin.getShopConfig().getGUIDecoration(key);
+        if (decor != null) {
+            return decor.getBukkitMaterial();
+        }
+        return fallback;
+    }
+
     protected ItemStack createActionItem(String materialKey, String name, String actionKey, String actionValue) {
         ItemStack item = ItemUtil.createItemFromKey(plugin, materialKey);
         ItemUtil.setDisplayName(item, name);

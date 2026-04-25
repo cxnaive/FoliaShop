@@ -23,7 +23,7 @@ public class ShopAdminGUI extends AbstractGUI {
 
     @Override
     protected void initialize() {
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
         // 打开管理界面时先从数据库刷新库存（跨服同步）
         plugin.getShopManager().refreshAllStocksFromDatabase(count -> {
             // 在主线程刷新界面
@@ -68,7 +68,7 @@ public class ShopAdminGUI extends AbstractGUI {
 
         // 上一页按钮
         if (currentPage > 0) {
-            ItemStack prevBtn = new ItemStack(Material.ARROW);
+            ItemStack prevBtn = createDecorItem("prev-page", Material.ARROW);
             ItemUtil.setDisplayName(prevBtn, "§e上一页");
             setItem(45, prevBtn, p -> {
                 currentPage--;
@@ -78,7 +78,7 @@ public class ShopAdminGUI extends AbstractGUI {
 
         // 下一页按钮
         if (currentPage < totalPages - 1) {
-            ItemStack nextBtn = new ItemStack(Material.ARROW);
+            ItemStack nextBtn = createDecorItem("next-page", Material.ARROW);
             ItemUtil.setDisplayName(nextBtn, "§e下一页");
             setItem(53, nextBtn, p -> {
                 currentPage++;
@@ -87,7 +87,7 @@ public class ShopAdminGUI extends AbstractGUI {
         }
 
         // 页码显示
-        ItemStack pageInfo = new ItemStack(Material.PAPER);
+        ItemStack pageInfo = createDecorItem("page-info", Material.PAPER);
         ItemUtil.setDisplayName(pageInfo, "§7页码: §e" + (currentPage + 1) + "§7/§e" + totalPages);
         setItem(49, pageInfo);
 
@@ -98,7 +98,7 @@ public class ShopAdminGUI extends AbstractGUI {
     private ItemStack createItemButton(ShopItem item) {
         ItemStack display = item.getDisplayItem();
         if (display == null) {
-            display = new ItemStack(Material.BARRIER);
+            display = createDecorItem("empty", Material.BARRIER);
         }
         display = display.clone();
 

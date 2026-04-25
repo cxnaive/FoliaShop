@@ -28,7 +28,7 @@ public class GlobalShopSubmitGUI extends AbstractGUI {
         fillBorder();
 
         // 提示信息
-        ItemStack info = new ItemStack(Material.PAPER);
+        ItemStack info = createDecorItem("info", Material.PAPER);
         ItemUtil.setDisplayName(info, "§e§l上架说明");
         double fee = plugin.getShopConfig().getGlobalShopListingFee();
         String feeText = fee > 0 ? "§7上架费用: §e" + String.format("%.2f", fee) + " " + plugin.getShopConfig().getCurrencyName() : "§7上架费用: §a免费";
@@ -50,7 +50,7 @@ public class GlobalShopSubmitGUI extends AbstractGUI {
         }
 
         // 确认上架按钮
-        ItemStack confirm = new ItemStack(Material.LIME_WOOL);
+        ItemStack confirm = createDecorItem("confirm", Material.LIME_WOOL);
         ItemUtil.setDisplayName(confirm, "§a§l确认上架");
         ItemUtil.setLore(confirm, List.of("§7点击上架放入的物品", "", "§e输入售价后正式上架"));
         setItem(49, confirm, this::confirmSubmit);

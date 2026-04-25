@@ -44,7 +44,7 @@ public class ShopItemsGUI extends AbstractGUI {
 
     @Override
     protected void initialize() {
-        fillBorder(Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder();
         slotToItem.clear();
         slotToSubcategory.clear();
 
@@ -124,7 +124,7 @@ public class ShopItemsGUI extends AbstractGUI {
      */
     private ItemStack createSubcategoryDisplay(ShopManager.SubCategory sub) {
         ItemStack icon = ItemUtil.createItemFromKey(plugin, sub.getIcon());
-        if (icon == null) icon = new ItemStack(Material.CHEST);
+        if (icon == null) icon = createDecorItem("item-fallback", Material.CHEST);
 
         ItemUtil.setDisplayName(icon, "§e§l📁 " + sub.getName());
 
@@ -256,7 +256,7 @@ public class ShopItemsGUI extends AbstractGUI {
      */
     private ItemStack createItemDisplay(ShopItem shopItem) {
         ItemStack displayItem = shopItem.getDisplayItem();
-        if (displayItem == null) return new ItemStack(Material.BARRIER);
+        if (displayItem == null) return createDecorItem("empty", Material.BARRIER);
 
         ItemStack item = displayItem.clone();
         java.util.List<String> shopLore = new java.util.ArrayList<>();
