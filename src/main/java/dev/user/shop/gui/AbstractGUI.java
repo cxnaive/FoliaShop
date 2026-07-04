@@ -95,12 +95,8 @@ public abstract class AbstractGUI implements InventoryHolder {
     }
 
     protected void fillBorder() {
-        String borderMat = plugin.getShopConfig().getGUITitle("border");
-        if (borderMat == null) {
-            fillBorder(Material.BLACK_STAINED_GLASS_PANE);
-        } else {
-            fillBorder(ItemUtil.createItemFromKey(plugin, borderMat).getType());
-        }
+        Material borderMat = getDecorMaterial("border", Material.BLACK_STAINED_GLASS_PANE);
+        fillBorder(borderMat);
     }
 
     protected void addCloseButton(int slot) {

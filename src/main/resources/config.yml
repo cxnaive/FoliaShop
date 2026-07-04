@@ -94,7 +94,7 @@ gui:
   # 装饰物品（界面边框和按钮）
   decoration:
     border:
-      material: "minecraft:black_stained_glass_pane"
+      material: "minecraft:light_blue_stained_glass_pane"
       name: " "
     close:
       material: "minecraft:barrier"
