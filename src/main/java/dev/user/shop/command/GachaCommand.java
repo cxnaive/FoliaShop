@@ -4,6 +4,7 @@ import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.GachaMachine;
 import dev.user.shop.gui.GachaMachineGUI;
 import dev.user.shop.gui.GachaMainGUI;
+import dev.user.shop.gui.TargetedBookMachineGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
@@ -47,7 +48,7 @@ public class GachaCommand implements CommandExecutor, TabCompleter {
                 if (!machine.isEnabled()) {
                     player.sendMessage(Component.text("该扭蛋机已禁用: " + machineId).color(NamedTextColor.RED));
                 } else {
-                    new GachaMachineGUI(plugin, player, machine).open();
+                    TargetedBookMachineGUI.openFor(plugin, player, machine);
                 }
             } else {
                 player.sendMessage(Component.text("扭蛋机不存在: " + machineId).color(NamedTextColor.RED));

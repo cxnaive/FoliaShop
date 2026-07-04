@@ -348,6 +348,36 @@ machines:
       # 快捷开关：排除原版附魔的重实现（true=只保留 Aiyatsbus 自创附魔，过滤掉锋利/保护等原版）
       # exclude-vanilla: false
 
+  # ========== 定向附魔书扭蛋机（书模式 + target-filter） ==========
+  # 与普通附魔书扭蛋机一样每次抽 1 本书，但 GUI 多一个输入格：
+  # 玩家放入武器/工具后，抽书前按该物品过滤掉不适用的附魔（参考附魔台），
+  # 保证出的书一定能在该武器上用。武器不消耗，关闭界面自动退还。
+  targeted_forge:
+    name: "<gradient:aqua:white>定向锻炉"
+    description:
+      - "<gray>放入武器/工具，抽适用附魔书"
+      - "<aqua>出的书必定能用在你的装备上"
+    icon: "minecraft:grindstone"
+    cost: 800.0
+    animation-duration: 3
+    animation-duration-ten: 8
+    broadcast-rare: true
+    broadcast-threshold: 0.05
+    enabled: false
+    mode: ENCHANT_BOOK
+    enchant-pool:
+      # ★ 定向过滤开关：开启后该机器开「定向附魔书 GUI」（带输入格）
+      target-filter: true
+      rarities: [common, uncommon, rare, epic, legendary]
+      rarity-decay:
+        base: 100.0
+        ratio: 0.25
+      level:
+        mode: decay
+        min: 1
+        fixed: 1
+      # exclude-vanilla: false   # 可选：只出自创附魔
+
   # ========== CraftEngine pack 扭蛋机（需安装 CraftEngine） ==========
   # 从一个或多个 CraftEngine pack 的物品里抽奖。无 rewards 列表，池来自 pack-pool。
   # 池来源 = packs(命名空间) ∪ tags(CE标签) ∪ items(显式key)，减去 exclude。

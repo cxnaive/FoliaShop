@@ -81,14 +81,18 @@ public class GachaTenResultGUI extends AbstractGUI {
         ));
         setItem(35, againBtn, p -> {
             p.closeInventory();
-            // 直接调用 GachaMachineGUI 的10连抽方法
+            // 定向书模式：回定向 GUI 让玩家重新放入武器（武器已被上次关闭退还）
+            if (TargetedBookMachineGUI.isTargeted(machine)) {
+                TargetedBookMachineGUI.openFor(plugin, p, machine);
+                return;
+            }
+            // 普通模式：直接触发10连抽
             new GachaMachineGUI(plugin, p, machine);
-            // 重新打开机器GUI并触发10连抽
             startTenGachaDirectly(p);
         });
 
         // 返回按钮
-        addBackButton(30, () -> new GachaMachineGUI(plugin, player, machine).open());
+        addBackButton(30, () -> TargetedBookMachineGUI.openFor(plugin, player, machine));
 
         // 播放结果展示音效
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, SoundCategory.MASTER, 1.0f, 1.5f);

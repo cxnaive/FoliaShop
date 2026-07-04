@@ -211,7 +211,7 @@ public class GachaAnimationGUI extends AbstractGUI {
         ));
         setItem(26, againBtn, p -> {
             p.closeInventory();
-            new GachaMachineGUI(plugin, p, machine).open();
+            TargetedBookMachineGUI.openFor(plugin, p, machine);
         });
     }
 

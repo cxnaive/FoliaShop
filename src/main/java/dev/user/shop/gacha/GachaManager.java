@@ -488,6 +488,15 @@ public class GachaManager {
      * 个别抽取失败（返回 null）会被跳过；调用方应处理「一本都没抽到」的退款场景。
      */
     public List<GachaReward> drawBookRewards(GachaMachine machine, int count) {
+        return drawBookRewards(machine, count, null);
+    }
+
+    /**
+     * 为书模式扭蛋机抽取多本附魔书并包装为 GachaReward 列表（复用全部现有动画/结果/发放/记录链路）。
+     * 个别抽取失败（返回 null）会被跳过；调用方应处理「一本都没抽到」的退款场景。
+     * @param targetItem 定向过滤的目标物品（仅抽该物品可用的附魔）；null 表示不定向
+     */
+    public List<GachaReward> drawBookRewards(GachaMachine machine, int count, ItemStack targetItem) {
         List<GachaReward> rewards = new ArrayList<>();
         if (!machine.isBookMode() || machine.getEnchantPool() == null) return rewards;
         AiyatsbusEnchantManager mgr = plugin.getAiyatsbusEnchantManager();
@@ -495,7 +504,7 @@ public class GachaManager {
         int attempts = 0;
         while (rewards.size() < count && attempts < count * 3) {
             attempts++;
-            AiyatsbusEnchantManager.DrawnBook drawn = mgr.drawBook(machine.getEnchantPool());
+            AiyatsbusEnchantManager.DrawnBook drawn = mgr.drawBook(machine.getEnchantPool(), targetItem);
             if (drawn == null) continue;
             rewards.add(wrapBookAsReward(drawn));
         }

@@ -130,7 +130,7 @@ public class GachaPreviewGUI extends AbstractGUI {
         setItem(49, pageInfo);
 
         // 返回按钮
-        addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
+        addBackButton(48, () -> TargetedBookMachineGUI.openFor(plugin, player, machine));
     }
 
     /**
@@ -171,7 +171,7 @@ public class GachaPreviewGUI extends AbstractGUI {
         setItem(49, info);
 
         // 返回按钮
-        addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
+        addBackButton(48, () -> TargetedBookMachineGUI.openFor(plugin, player, machine));
     }
 
     private ItemStack createTierItem(AiyatsbusEnchantManager.TierInfo tier, String levelDesc) {
@@ -285,6 +285,6 @@ public class GachaPreviewGUI extends AbstractGUI {
         setItem(49, pageInfo);
 
         // 返回按钮
-        addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
+        addBackButton(48, () -> TargetedBookMachineGUI.openFor(plugin, player, machine));
     }
 }

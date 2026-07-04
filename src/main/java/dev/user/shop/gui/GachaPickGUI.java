@@ -106,7 +106,7 @@ public class GachaPickGUI extends AbstractGUI {
         }
 
         // 返回按钮
-        addBackButton(49, () -> new GachaMachineGUI(plugin, player, machine).open());
+        addBackButton(49, () -> TargetedBookMachineGUI.openFor(plugin, player, machine));
     }
 
     private void handlePick(int rewardIndex) {
@@ -139,11 +139,11 @@ public class GachaPickGUI extends AbstractGUI {
                         player.closeInventory();
 
                         // 刷新扭蛋机界面
-                        new GachaMachineGUI(plugin, player, machine).open();
+                        TargetedBookMachineGUI.openFor(plugin, player, machine);
                     } else {
                         player.sendMessage("§c自选失败，可用次数不足或发生错误");
                         player.closeInventory();
-                        new GachaMachineGUI(plugin, player, machine).open();
+                        TargetedBookMachineGUI.openFor(plugin, player, machine);
                     }
                 });
             }

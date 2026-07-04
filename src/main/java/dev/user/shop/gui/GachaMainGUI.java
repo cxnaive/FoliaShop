@@ -129,7 +129,7 @@ public class GachaMainGUI extends AbstractGUI {
 
         setItem(slot, icon, p -> {
             p.closeInventory();
-            new GachaMachineGUI(plugin, p, machine).open();
+            TargetedBookMachineGUI.openFor(plugin, p, machine);
         });
         occupied.add(slot);
     }

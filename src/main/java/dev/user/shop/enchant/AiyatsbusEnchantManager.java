@@ -5,6 +5,7 @@ import cc.polarastrum.aiyatsbus.core.AiyatsbusAPI;
 import cc.polarastrum.aiyatsbus.core.AiyatsbusEnchantment;
 import cc.polarastrum.aiyatsbus.core.AiyatsbusEnchantmentManager;
 import cc.polarastrum.aiyatsbus.core.AiyatsbusUtilsKt;
+import cc.polarastrum.aiyatsbus.core.data.CheckType;
 import cc.polarastrum.aiyatsbus.core.data.registry.Rarity;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.EnchantBookPool;
@@ -81,13 +82,23 @@ public class AiyatsbusEnchantManager {
     }
 
     /**
-     * 从池中抽取一本附魔书
+     * 从池中抽取一本附魔书（无定向过滤）
      * @return 抽取结果；未启用/池空/出错返回 null
      */
     public DrawnBook drawBook(EnchantBookPool pool) {
+        return drawBook(pool, null);
+    }
+
+    /**
+     * 从池中抽取一本附魔书，可按目标物品定向过滤（仅抽该物品可用的附魔）。
+     * @param targetItem 目标物品；null 表示不定向过滤
+     * @return 抽取结果；未启用/池空/出错/目标物品无可用附魔 返回 null
+     */
+    public DrawnBook drawBook(EnchantBookPool pool, ItemStack targetItem) {
         if (!enabled || pool == null || pool.getRarities().isEmpty()) return null;
         try {
-            List<DrawableTier> tiers = buildDrawableTiers(pool);
+            Set<String> applicableIds = applicableEnchantIds(targetItem);
+            List<DrawableTier> tiers = buildDrawableTiers(pool, applicableIds);
             double total = totalTierWeight(tiers);
             if (tiers.isEmpty() || total <= 0) return null;
 
@@ -120,6 +131,26 @@ public class AiyatsbusEnchantManager {
     }
 
     /**
+     * 计算目标物品的可适用附魔 id 集合（用 Aiyatsbus etsAvailable，自动按类型/冲突/容量/inaccessible 过滤）。
+     * @return null 表示不定向过滤（targetItem 为 null）；空集合表示该物品无任何可适用附魔
+     */
+    private Set<String> applicableEnchantIds(ItemStack targetItem) {
+        if (targetItem == null) return null;
+        if (targetItem.getType().isAir()) return new HashSet<>(); // AIR 物品无任何适用附魔
+        try {
+            List<AiyatsbusEnchantment> applicable = AiyatsbusUtilsKt.etsAvailable(targetItem, CheckType.ATTAIN, null);
+            Set<String> ids = new HashSet<>();
+            for (AiyatsbusEnchantment e : applicable) {
+                ids.add(e.getId());
+            }
+            return ids;
+        } catch (Throwable e) {
+            plugin.getLogger().warning("读取物品适用附魔失败: " + e.getMessage());
+            return new HashSet<>(); // 出错按「无适用」处理 → drawBook 返回 null，调用方退款
+        }
+    }
+
+    /**
      * 计算附魔池的有效档位信息（供预览展示）。
      * 与 {@link #drawBook} 共用 {@link #buildDrawableTiers}，确保「预览看到的概率 = 实际抽奖概率」。
      * 返回顺序与池配置 rarities 一致（跳过过滤后为空的档）。
@@ -128,7 +159,7 @@ public class AiyatsbusEnchantManager {
         List<TierInfo> info = new ArrayList<>();
         if (!enabled || pool == null) return info;
         try {
-            List<DrawableTier> tiers = buildDrawableTiers(pool);
+            List<DrawableTier> tiers = buildDrawableTiers(pool, null);
             double total = totalTierWeight(tiers);
             if (total <= 0) return info;
             for (DrawableTier t : tiers) {
@@ -151,14 +182,15 @@ public class AiyatsbusEnchantManager {
 
     /**
      * 构建有效（过滤后非空）的品质档列表，按池配置 rarities 顺序。drawBook 与 getPoolInfo 共用。
+     * @param applicableIds 定向过滤的附魔 id 集合；null=不过滤，空集合=全过滤掉
      */
-    private List<DrawableTier> buildDrawableTiers(EnchantBookPool pool) {
+    private List<DrawableTier> buildDrawableTiers(EnchantBookPool pool, Set<String> applicableIds) {
         List<DrawableTier> tiers = new ArrayList<>();
         for (int i = 0; i < pool.getRarities().size(); i++) {
             String key = pool.getRarities().get(i);
             Rarity rarity = AiyatsbusUtilsKt.aiyatsbusRarity(key);
             if (rarity == null) continue;
-            List<AiyatsbusEnchantment> filtered = filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool);
+            List<AiyatsbusEnchantment> filtered = filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool, applicableIds);
             if (filtered.isEmpty()) continue;
             tiers.add(new DrawableTier(key, rarity, filtered, pool.weightAt(i)));
         }
@@ -232,7 +264,7 @@ public class AiyatsbusEnchantManager {
                 Rarity rarity = AiyatsbusUtilsKt.aiyatsbusRarity(rarityKey);
                 if (rarity == null) continue;
                 // 复用 drawBook 的过滤逻辑（含 groups / weight / exclude）
-                for (AiyatsbusEnchantment ench : filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool)) {
+                for (AiyatsbusEnchantment ench : filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool, null)) {
                     if (result.size() >= count) break;
                     if (seen.add(ench.getId())) {
                         try {
@@ -251,9 +283,9 @@ public class AiyatsbusEnchantManager {
     }
 
     /**
-     * 过滤附魔：排除 disabled / inaccessible / exclude / 不在指定分组内的
+     * 过滤附魔：排除 disabled / inaccessible / exclude / 不在指定分组内的；可选定向过滤（仅保留 applicableIds 内的）
      */
-    private List<AiyatsbusEnchantment> filterEnchants(List<AiyatsbusEnchantment> enchants, EnchantBookPool pool) {
+    private List<AiyatsbusEnchantment> filterEnchants(List<AiyatsbusEnchantment> enchants, EnchantBookPool pool, Set<String> applicableIds) {
         List<AiyatsbusEnchantment> result = new ArrayList<>();
         Set<String> exclude = new HashSet<>(pool.getExclude());
         boolean useGroups = !pool.getGroups().isEmpty();
@@ -266,6 +298,8 @@ public class AiyatsbusEnchantManager {
                 // 可选：排除原版附魔的重实现（Aiyatsbus isVanilla，即 Packet-Vanilla）
                 if (pool.isExcludeVanilla() && ench.getAlternativeData().isVanilla()) continue;
                 if (exclude.contains(ench.getId())) continue;
+                // 可选：定向过滤（仅保留目标物品可用的附魔）
+                if (applicableIds != null && !applicableIds.contains(ench.getId())) continue;
                 if (useGroups) {
                     boolean inAny = false;
                     for (String g : pool.getGroups()) {

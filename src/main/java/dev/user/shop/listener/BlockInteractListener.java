@@ -3,6 +3,7 @@ package dev.user.shop.listener;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gui.GachaMachineGUI;
 import dev.user.shop.gui.GachaPreviewGUI;
+import dev.user.shop.gui.TargetedBookMachineGUI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.block.Block;
@@ -78,7 +79,7 @@ public class BlockInteractListener implements Listener {
         }
         // 右键：打开抽奖界面
         else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            new GachaMachineGUI(plugin, player, machine).open();
+            TargetedBookMachineGUI.openFor(plugin, player, machine);
         }
     }
 }

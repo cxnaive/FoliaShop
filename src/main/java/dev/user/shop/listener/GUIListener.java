@@ -6,6 +6,7 @@ import dev.user.shop.gui.GlobalShopSubmitGUI;
 import dev.user.shop.gui.GUIManager;
 import dev.user.shop.gui.SellGUI;
 import dev.user.shop.gui.ShopItemsGUI;
+import dev.user.shop.gui.TargetedBookMachineGUI;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -50,6 +51,12 @@ public class GUIListener implements Listener {
         // 处理全球商店上架界面的特殊逻辑（与出售界面相同模式）
         if (gui instanceof GlobalShopSubmitGUI submitGUI) {
             handleGlobalShopSubmitGUIClick(event, player, submitGUI);
+            return;
+        }
+
+        // 处理定向附魔书界面的特殊逻辑（单物品输入格）
+        if (gui instanceof TargetedBookMachineGUI targetGUI) {
+            handleTargetedBookClick(event, player, targetGUI);
             return;
         }
 
@@ -176,6 +183,17 @@ public class GUIListener implements Listener {
             return;
         }
 
+        // 定向附魔书界面允许拖放到输入格
+        if (gui instanceof TargetedBookMachineGUI targetGUI) {
+            for (int slot : event.getRawSlots()) {
+                if (slot < targetGUI.getInventory().getSize() && !targetGUI.isInputSlot(slot)) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+            return;
+        }
+
         event.setCancelled(true);
     }
 
@@ -193,6 +211,11 @@ public class GUIListener implements Listener {
             // 全球商店上架界面关闭时退回物品
             if (gui instanceof GlobalShopSubmitGUI submitGUI) {
                 returnGlobalShopItemsToPlayer(player, submitGUI);
+            }
+
+            // 定向附魔书界面关闭时退回输入格的武器（不消耗）
+            if (gui instanceof TargetedBookMachineGUI targetGUI) {
+                returnTargetedBookInput(player, targetGUI);
             }
 
             gui.onClose();
@@ -311,6 +334,83 @@ public class GUIListener implements Listener {
                     for (ItemStack drop : leftover.values()) {
                         player.getWorld().dropItemNaturally(player.getLocation(), drop);
                     }
+                }
+            }
+        }, null, 1L);
+    }
+
+    /**
+     * 定向附魔书界面的点击处理（仿 GlobalShopSubmitGUI，单输入格）。
+     * 输入格允许放入/取出；按钮格 cancel+路由；背包 Shift+点击移入输入格。
+     */
+    private void handleTargetedBookClick(InventoryClickEvent event, Player player, TargetedBookMachineGUI gui) {
+        Inventory clickedInventory = event.getClickedInventory();
+        int slot = event.getSlot();
+        InventoryAction action = event.getAction();
+
+        // 点击顶部 GUI
+        if (clickedInventory == gui.getInventory()) {
+            if (gui.isInputSlot(slot)) {
+                // 禁止按 Q 丢弃输入格里的武器（DROP_ONE_SLOT/DROP_ALL_SLOT）
+                if (action.name().startsWith("DROP")) {
+                    event.setCancelled(true);
+                    return;
+                }
+                // 输入格：允许放入/取出（取出时检查背包空间）
+                ItemStack item = event.getCurrentItem();
+                if (item != null && item.getType().isItem()) {
+                    if (player.getInventory().firstEmpty() == -1) {
+                        player.sendMessage("§c背包已满！");
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+                event.setCancelled(false);
+                return;
+            }
+            // 按钮/装饰格
+            event.setCancelled(true);
+            gui.handleClick(slot, player);
+            return;
+        }
+
+        // 点击底部背包
+        if (clickedInventory == player.getInventory()) {
+            ItemStack item = event.getCurrentItem();
+            if (item == null || !item.getType().isItem()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // Shift+点击：把物品移到输入格
+            if (action == InventoryAction.MOVE_TO_OTHER_INVENTORY) {
+                if (gui.getInventory().getItem(TargetedBookMachineGUI.INPUT_SLOT) != null) {
+                    player.sendMessage("§c输入格已有物品，请先取出！");
+                    event.setCancelled(true);
+                    return;
+                }
+                event.setCancelled(true);
+                ItemStack clone = item.clone();
+                gui.getInventory().setItem(TargetedBookMachineGUI.INPUT_SLOT, clone);
+                player.getInventory().removeItem(item);
+                return;
+            }
+            // 其他点击：允许玩家正常整理背包（不 cancel）
+        }
+    }
+
+    /**
+     * 定向附魔书界面关闭时退回输入格的武器（Folia 下需在玩家区域线程执行）
+     */
+    private void returnTargetedBookInput(Player player, TargetedBookMachineGUI gui) {
+        ItemStack item = gui.getInventory().getItem(TargetedBookMachineGUI.INPUT_SLOT);
+        if (item == null || !item.getType().isItem()) return;
+
+        player.getScheduler().execute(dev.user.shop.FoliaShopPlugin.getInstance(), () -> {
+            java.util.HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(item);
+            if (!leftover.isEmpty()) {
+                for (ItemStack drop : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), drop);
                 }
             }
         }, null, 1L);
