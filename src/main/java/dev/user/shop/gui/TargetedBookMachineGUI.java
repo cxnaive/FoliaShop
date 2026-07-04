@@ -83,14 +83,29 @@ public class TargetedBookMachineGUI extends AbstractGUI {
         ItemUtil.setLore(tenBtn, List.of("§7花费 §e" + plugin.getShopConfig().formatCurrency(tenCost) + " §7抽 10 本适用附魔书"));
         setItem(15, tenBtn, this::startTenGacha);
 
-        // 预览按钮（slot 20）
+        // 预览按钮（slot 20）：按输入格物品过滤展示适用附魔
         ItemStack previewBtn = new ItemStack(Material.BOOK);
         ItemUtil.setDisplayName(previewBtn, "§e附魔池预览");
-        ItemUtil.setLore(previewBtn, List.of("§7查看附魔池（实际抽取会按放入物品过滤）"));
-        setItem(20, previewBtn, p -> new GachaPreviewGUI(plugin, p, machine).open());
+        ItemUtil.setLore(previewBtn, List.of("§7按放入的物品过滤展示适用附魔", "§7未放入物品则展示完整池"));
+        setItem(20, previewBtn, p -> {
+            ItemStack target = inventory.getItem(INPUT_SLOT);
+            ItemStack targetClone = (target != null && !target.getType().isAir()) ? target.clone() : null;
+            p.closeInventory();
+            new GachaPreviewGUI(plugin, p, machine, targetClone).open();
+        });
 
         // 返回按钮（slot 22）
         addBackButton(22, () -> new GachaMainGUI(plugin, player).open());
+
+        // 用玻璃板填满所有非输入格的空位（只剩输入格是空的，引导玩家放入武器）
+        ItemStack spacer = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemUtil.setDisplayName(spacer, " ");
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (i == INPUT_SLOT) continue;
+            if (inventory.getItem(i) == null) {
+                inventory.setItem(i, spacer);
+            }
+        }
     }
 
     /** listener 用来判断点击是否落在输入格 */

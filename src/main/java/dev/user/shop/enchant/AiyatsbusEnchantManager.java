@@ -156,10 +156,21 @@ public class AiyatsbusEnchantManager {
      * 返回顺序与池配置 rarities 一致（跳过过滤后为空的档）。
      */
     public List<TierInfo> getPoolInfo(EnchantBookPool pool) {
+        return getPoolInfo(pool, null);
+    }
+
+    /**
+     * 计算附魔池的有效档位信息（供预览展示），可按目标物品定向过滤。
+     * 与 {@link #drawBook} 共用 {@link #buildDrawableTiers}，确保「预览看到的概率 = 实际抽奖概率」。
+     * 返回顺序与池配置 rarities 一致（跳过过滤后为空的档）。
+     * @param targetItem 定向过滤的目标物品；null 表示不定向（不过滤）
+     */
+    public List<TierInfo> getPoolInfo(EnchantBookPool pool, ItemStack targetItem) {
         List<TierInfo> info = new ArrayList<>();
         if (!enabled || pool == null) return info;
         try {
-            List<DrawableTier> tiers = buildDrawableTiers(pool, null);
+            Set<String> applicableIds = applicableEnchantIds(targetItem);
+            List<DrawableTier> tiers = buildDrawableTiers(pool, applicableIds);
             double total = totalTierWeight(tiers);
             if (total <= 0) return info;
             for (DrawableTier t : tiers) {
@@ -178,6 +189,30 @@ public class AiyatsbusEnchantManager {
             plugin.getLogger().warning("获取附魔池信息失败: " + e.getMessage());
         }
         return info;
+    }
+
+    /**
+     * 附魔池诊断信息：每个配置品质档过滤后的附魔数量 + 总数（用于加载日志，排查 exclude-vanilla/exclude/groups 等过滤是否生效）。
+     */
+    public String getPoolDebugInfo(EnchantBookPool pool) {
+        if (!enabled || pool == null) return "Aiyatsbus 未启用或池为空";
+        StringBuilder sb = new StringBuilder();
+        int total = 0;
+        try {
+            for (int i = 0; i < pool.getRarities().size(); i++) {
+                String key = pool.getRarities().get(i);
+                Rarity rarity = AiyatsbusUtilsKt.aiyatsbusRarity(key);
+                int count = (rarity == null) ? -1 : filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool, null).size();
+                if (i > 0) sb.append(", ");
+                sb.append(key).append(":").append(count < 0 ? "?" : count);
+                if (count > 0) total += count;
+            }
+            sb.append(" | 可抽附魔共 ").append(total).append(" 种");
+            if (pool.isExcludeVanilla()) sb.append("（已排除原版重实现）");
+        } catch (Throwable e) {
+            return "读取附魔池失败: " + e.getMessage();
+        }
+        return sb.toString();
     }
 
     /**

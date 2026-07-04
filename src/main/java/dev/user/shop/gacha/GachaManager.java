@@ -123,6 +123,8 @@ public class GachaManager {
             if (isBookMachine) {
                 machine.setBookMode(true);
                 machine.setEnchantPool(pool);
+                // 打印附魔池构成，便于排查 exclude-vanilla / exclude / groups 等过滤是否生效
+                plugin.getLogger().info("扭蛋机 '" + machineId + "' 附魔池: " + plugin.getAiyatsbusEnchantManager().getPoolDebugInfo(pool));
                 if (!plugin.getAiyatsbusEnchantManager().isEnabled()) {
                     plugin.getLogger().warning("扭蛋机 '" + machineId + "' 为附魔书模式，但 Aiyatsbus 插件未安装/未就绪，该扭蛋机已禁用");
                     machine.setEnabled(false);

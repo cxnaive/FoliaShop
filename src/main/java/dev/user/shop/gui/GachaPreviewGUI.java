@@ -22,9 +22,15 @@ public class GachaPreviewGUI extends AbstractGUI {
     private final GachaMachine machine;
     private final List<GachaReward> sortedRewards;
     private final boolean hasAdminPermission;
+    /** 定向预览：按此物品过滤适用附魔（书模式 target-filter 用）；null 表示不过滤 */
+    private final ItemStack targetItem;
     private int page = 0;
 
     public GachaPreviewGUI(FoliaShopPlugin plugin, Player player, GachaMachine machine) {
+        this(plugin, player, machine, null);
+    }
+
+    public GachaPreviewGUI(FoliaShopPlugin plugin, Player player, GachaMachine machine, ItemStack targetItem) {
         super(plugin, player, "§8奖品预览 - " + MessageUtil.convertMiniMessageToLegacy(machine.getName()), 54);
         this.machine = machine;
         this.hasAdminPermission = player.hasPermission("foliashop.admin");
@@ -32,6 +38,7 @@ public class GachaPreviewGUI extends AbstractGUI {
         this.sortedRewards = machine.getRewards().stream()
             .sorted(Comparator.comparingDouble(GachaReward::getProbability))
             .collect(Collectors.toList());
+        this.targetItem = targetItem;
     }
 
     @Override
@@ -142,13 +149,19 @@ public class GachaPreviewGUI extends AbstractGUI {
      */
     private void initializeBookPreview() {
         EnchantBookPool pool = machine.getEnchantPool();
-        List<AiyatsbusEnchantManager.TierInfo> tiers = plugin.getAiyatsbusEnchantManager().getPoolInfo(pool);
+        // 定向预览：按 targetItem 过滤适用附魔，概率在过滤后的档位上重新归一化（与实际抽奖一致）
+        List<AiyatsbusEnchantManager.TierInfo> tiers = plugin.getAiyatsbusEnchantManager().getPoolInfo(pool, targetItem);
         String levelDesc = levelDesc(pool);
 
         if (tiers.isEmpty()) {
             ItemStack empty = new ItemStack(Material.BARRIER);
-            ItemUtil.setDisplayName(empty, "§c附魔池为空");
-            ItemUtil.setLore(empty, List.of("§7未匹配到任何可用附魔", "§7请检查 rarities/groups/exclude 配置"));
+            if (targetItem != null) {
+                ItemUtil.setDisplayName(empty, "§c该物品无可适用的附魔");
+                ItemUtil.setLore(empty, List.of("§7放入的物品没有任何可附加的附魔", "§7换个武器/工具再试"));
+            } else {
+                ItemUtil.setDisplayName(empty, "§c附魔池为空");
+                ItemUtil.setLore(empty, List.of("§7未匹配到任何可用附魔", "§7请检查 rarities/groups/exclude 配置"));
+            }
             setItem(13, empty);
         } else {
             int slot = 10;
