@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.user"
-version = "1.2.1"
+version = "1.3.0"
 
 repositories {
     mavenCentral()
@@ -56,6 +56,13 @@ tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
     sourceCompatibility = "21"
     targetCompatibility = "21"
+}
+
+// 将 project.version 注入 plugin.yml 的 ${version} 占位符
+tasks.processResources {
+    filesMatching("plugin.yml") {
+        expand("version" to project.version)
+    }
 }
 
 tasks.shadowJar {
