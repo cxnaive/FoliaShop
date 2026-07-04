@@ -320,6 +320,7 @@ machines:
       #   - weight <= 0 的附魔（Aiyatsbus 本身也永远抽不到）
       #   - 你在下方 exclude 里列出的附魔 id
       #   - 配了 groups 时，不在任何指定分组内的附魔
+      #   - 开启 exclude-vanilla 时，原版附魔的重实现（Packet-Vanilla，如锋利/保护）不进池
       #   - 第三方插件注册进 Aiyatsbus 的附魔，只要满足以上条件同样进池（注册表实时读取）
       # 注意：disable_worlds（按世界禁用）不会被过滤——扭蛋产出的是实体书，
       #       附魔在特定世界是否生效由 Aiyatsbus 运行时决定。
@@ -344,6 +345,8 @@ machines:
       # 排除这些附魔 id（可选）
       # exclude:
       #   - vanishing_curse
+      # 快捷开关：排除原版附魔的重实现（true=只保留 Aiyatsbus 自创附魔，过滤掉锋利/保护等原版）
+      # exclude-vanilla: false
 
   # ========== CraftEngine pack 扭蛋机（需安装 CraftEngine） ==========
   # 从一个或多个 CraftEngine pack 的物品里抽奖。无 rewards 列表，池来自 pack-pool。

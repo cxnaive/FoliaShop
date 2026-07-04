@@ -30,10 +30,12 @@ public class EnchantBookPool {
     private final List<String> groups;
     /** 排除这些附魔 id */
     private final List<String> exclude;
+    /** 是否排除原版附魔的重实现（Aiyatsbus 的 isVanilla 附魔，即 Packet-Vanilla 那 45 个） */
+    private final boolean excludeVanilla;
 
     public EnchantBookPool(List<String> rarities, double decayBase, double decayRatio,
                            String levelMode, int levelMin, int levelFixed,
-                           List<String> groups, List<String> exclude) {
+                           List<String> groups, List<String> exclude, boolean excludeVanilla) {
         this.rarities = rarities != null ? rarities : new ArrayList<>();
         this.decayBase = decayBase;
         this.decayRatio = decayRatio;
@@ -42,6 +44,7 @@ public class EnchantBookPool {
         this.levelFixed = levelFixed;
         this.groups = groups != null ? groups : new ArrayList<>();
         this.exclude = exclude != null ? exclude : new ArrayList<>();
+        this.excludeVanilla = excludeVanilla;
     }
 
     /**
@@ -76,8 +79,9 @@ public class EnchantBookPool {
 
         List<String> groups = section.getStringList("groups");
         List<String> exclude = section.getStringList("exclude");
+        boolean excludeVanilla = section.getBoolean("exclude-vanilla", false);
 
-        return new EnchantBookPool(rarities, base, ratio, levelMode, levelMin, levelFixed, groups, exclude);
+        return new EnchantBookPool(rarities, base, ratio, levelMode, levelMin, levelFixed, groups, exclude, excludeVanilla);
     }
 
     /**
@@ -106,4 +110,5 @@ public class EnchantBookPool {
     public int getLevelFixed() { return levelFixed; }
     public List<String> getGroups() { return groups; }
     public List<String> getExclude() { return exclude; }
+    public boolean isExcludeVanilla() { return excludeVanilla; }
 }

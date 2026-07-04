@@ -263,6 +263,8 @@ public class AiyatsbusEnchantManager {
                 if (ench.getAlternativeData().getInaccessible()) continue;
                 // weight<=0 的附魔 drawEt 永远抽不到，排除以保证过滤后必然可抽
                 if (ench.getAlternativeData().getWeight() <= 0) continue;
+                // 可选：排除原版附魔的重实现（Aiyatsbus isVanilla，即 Packet-Vanilla）
+                if (pool.isExcludeVanilla() && ench.getAlternativeData().isVanilla()) continue;
                 if (exclude.contains(ench.getId())) continue;
                 if (useGroups) {
                     boolean inAny = false;
