@@ -1,6 +1,7 @@
 package dev.user.shop.gacha;
 
 import dev.user.shop.FoliaShopPlugin;
+import dev.user.shop.craftengine.CraftEnginePackManager;
 import dev.user.shop.enchant.AiyatsbusEnchantManager;
 import dev.user.shop.util.ItemUtil;
 import org.bukkit.configuration.ConfigurationSection;
@@ -84,15 +85,29 @@ public class GachaManager {
                 milepostMaxPicks = milepostSection.getInt("max-picks", 0);
             }
 
-            // 检测附魔书模式（mode: ENCHANT_BOOK，或配置了 enchant-pool 段）
+            // 检测抽奖模式（mode 字段权威；mode 为空时按配置段推断）。三种模式互斥。
             String mode = machineSection.getString("mode", "");
             ConfigurationSection poolSection = machineSection.getConfigurationSection("enchant-pool");
-            boolean isBookMachine = "ENCHANT_BOOK".equalsIgnoreCase(mode) || poolSection != null;
+            ConfigurationSection packPoolSection = machineSection.getConfigurationSection("pack-pool");
+            boolean isBookMachine = "ENCHANT_BOOK".equalsIgnoreCase(mode)
+                || (mode.isEmpty() && poolSection != null);
+            boolean isCePackMachine = !isBookMachine
+                && ("CRAFTENGINE_PACK".equalsIgnoreCase(mode) || (mode.isEmpty() && packPoolSection != null));
             EnchantBookPool pool = null;
             if (isBookMachine) {
                 pool = EnchantBookPool.fromConfig(poolSection);
                 if (pool == null || pool.getRarities().isEmpty()) {
                     plugin.getLogger().warning("扭蛋机 '" + machineId + "' 配置为附魔书模式但缺少有效的 enchant-pool，已跳过");
+                    continue;
+                }
+            }
+
+            // CraftEngine pack 模式（与书模式互斥）
+            CraftEnginePackPool cePool = null;
+            if (isCePackMachine) {
+                cePool = CraftEnginePackPool.fromConfig(packPoolSection);
+                if (cePool == null) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 配置为 CE pack 模式但缺少 pack-pool，已跳过");
                     continue;
                 }
             }
@@ -120,6 +135,24 @@ public class GachaManager {
                     } else {
                         machine.setBookAnimationItems(samples);
                     }
+                }
+                if (machines.containsKey(machineId)) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 重复定义，后加载的配置将覆盖之前的");
+                }
+                machines.put(machineId, machine);
+                continue;
+            }
+
+            // CE pack 模式：配置池 + 预生成动画样本，跳过 rewards 解析与总概率检查
+            if (isCePackMachine) {
+                machine.setCePackMode(true);
+                machine.setCePackPool(cePool);
+                List<ItemStack> samples = plugin.getCraftEnginePackManager().sampleAnimationItems(cePool, 16);
+                if (samples.isEmpty()) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 的 CE 物品池未匹配到任何物品（检查 packs/tags/items/exclude 配置），该扭蛋机已禁用");
+                    machine.setEnabled(false);
+                } else {
+                    machine.setCeAnimationItems(samples);
                 }
                 if (machines.containsKey(machineId)) {
                     plugin.getLogger().warning("扭蛋机 '" + machineId + "' 重复定义，后加载的配置将覆盖之前的");
@@ -303,6 +336,13 @@ public class GachaManager {
             return;
         }
 
+        // CE pack 模式：直接抽 10 件物品包装为 GachaReward，跳过历史查询与软保底
+        if (machine.isCePackMode()) {
+            List<GachaReward> rewards = drawCePackRewards(machine, 10);
+            callback.accept(new TenGachaResult(rewards, pityCount, 0, new HashMap<>()));
+            return;
+        }
+
         // 先查询每个奖品的历史记录，用于计算显示次数
         queryRewardHistories(playerUuid, machine.getId(), machine.getRewards(), histories -> {
             List<GachaReward> rewards = new ArrayList<>();
@@ -478,6 +518,44 @@ public class GachaManager {
             false
         );
         reward.setDisplayItem(drawn.book.clone());
+        return reward;
+    }
+
+    /**
+     * 为 CE pack 模式扭蛋机抽取多件物品并包装为 GachaReward 列表（复用全部现有动画/结果/发放/记录链路）。
+     * 个别抽取失败（返回 null）会被跳过；调用方应处理「一件都没抽到」的退款场景。
+     */
+    public List<GachaReward> drawCePackRewards(GachaMachine machine, int count) {
+        List<GachaReward> rewards = new ArrayList<>();
+        if (!machine.isCePackMode() || machine.getCePackPool() == null) return rewards;
+        CraftEnginePackManager mgr = plugin.getCraftEnginePackManager();
+        int amount = machine.getCePackPool().getAmount();
+        int attempts = 0;
+        while (rewards.size() < count && attempts < count * 3) {
+            attempts++;
+            CraftEnginePackManager.DrawnItem drawn = mgr.drawItem(machine.getCePackPool());
+            if (drawn == null) continue;
+            rewards.add(wrapCeItemAsReward(drawn, amount));
+        }
+        return rewards;
+    }
+
+    /**
+     * 把一件抽到的 CE 物品包装成合成 GachaReward。
+     * id = "ce:" + CE key；itemKey = CE key（历史记录可经现有 createItemFromKey→getCEItem 自动重建）；
+     * probability = 该物品的有效中选率，使现有颜色/百分比/广播逻辑生效。
+     */
+    private GachaReward wrapCeItemAsReward(CraftEnginePackManager.DrawnItem drawn, int amount) {
+        String id = "ce:" + drawn.key;
+        GachaReward reward = new GachaReward(
+            id,
+            drawn.key,
+            amount,
+            drawn.probability,
+            null,
+            false
+        );
+        reward.setDisplayItem(drawn.item.clone());
         return reward;
     }
 

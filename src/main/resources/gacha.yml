@@ -345,6 +345,43 @@ machines:
       # exclude:
       #   - vanishing_curse
 
+  # ========== CraftEngine pack 扭蛋机（需安装 CraftEngine） ==========
+  # 从一个或多个 CraftEngine pack 的物品里抽奖。无 rewards 列表，池来自 pack-pool。
+  # 池来源 = packs(命名空间) ∪ tags(CE标签) ∪ items(显式key)，减去 exclude。
+  # CE 物品本身没有稀有度/权重，概率采用「等权重 + 可选 weights 覆盖」。
+  # 抽中的 CE 物品 key（如 mythril:sword1）能被现有 createItemFromKey 自动重建，历史记录无需特殊处理。
+  ce_loot_crate:
+    name: "<gradient:gold:yellow>秘宝箱"
+    description:
+      - "<gray>花费 <yellow>300金币 <gray>抽取一件"
+      - "<gold>从 CraftEngine 物品池随机出货！"
+      - ""
+      - "<gray>✦ 单抽: 300金币（1件）"
+      - "<gray>✦ 10连抽: 3000金币（10件）"
+    icon: "minecraft:chest"
+    cost: 300.0
+    animation-duration: 3
+    animation-duration-ten: 8
+    broadcast-rare: false                  # CE 物品等权，概率≈1/N，建议关闭广播或按池大小调阈值
+    broadcast-threshold: 0.05
+    enabled: false                         # 确认 CE pack 命名空间正确后改为 true
+    mode: CRAFTENGINE_PACK                 # ★ CE pack 模式（或省略 mode，仅配 pack-pool 也算）
+    pack-pool:                             # ★ 物品池
+      # 来源一：按 pack 命名空间枚举（主用法）。填 CE pack.yml 里声明的 namespace
+      packs: [default]
+      # 来源二：按 CE tag 枚举（形如 "命名空间:标签名"，需在 CE 物品 settings.tags 里打过）
+      # tags: [myserver:gacha]
+      # 来源三：显式指定物品 key
+      # items: [default:cap, default:topaz_helmet]
+      # 排除这些物品 key（可选）
+      # exclude: [default:debug_item]
+      # 每件物品给多少个（默认 1）
+      amount: 1
+      # 可选：覆盖个别物品权重（默认等权 1.0）。key 必须用 "命名空间:物品名" 完整写法
+      # weights:
+      #   default:legendary_sword: 0.1
+      #   default:common_dust: 5
+
 # =============================
 # 收集兑换配置（可选）
 # =============================

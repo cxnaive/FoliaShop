@@ -7,6 +7,7 @@ import dev.user.shop.config.ShopConfig;
 import dev.user.shop.database.BackupManager;
 import dev.user.shop.database.DatabaseManager;
 import dev.user.shop.database.DatabaseQueue;
+import dev.user.shop.craftengine.CraftEnginePackManager;
 import dev.user.shop.economy.EconomyManager;
 import dev.user.shop.economy.ExchangeSessionManager;
 import dev.user.shop.economy.PlayerPointsManager;
@@ -36,6 +37,7 @@ public class FoliaShopPlugin extends JavaPlugin {
     private EconomyManager economyManager;
     private PlayerPointsManager playerPointsManager;
     private AiyatsbusEnchantManager aiyatsbusEnchantManager;
+    private CraftEnginePackManager craftEnginePackManager;
     private ExchangeSessionManager exchangeSessionManager;
     private volatile ShopManager shopManager;
     private volatile GachaManager gachaManager;
@@ -96,6 +98,9 @@ public class FoliaShopPlugin extends JavaPlugin {
         // 初始化 Aiyatsbus 更多附魔系统（软依赖，附魔书扭蛋用）
         this.aiyatsbusEnchantManager = new AiyatsbusEnchantManager(this);
         aiyatsbusEnchantManager.init();
+
+        // 初始化 CraftEngine pack 抽取管理器（CE pack 扭蛋用，CE 为硬依赖）
+        this.craftEnginePackManager = new CraftEnginePackManager(this);
 
         // 初始化购买事务管理器
         this.purchaseManager = new PurchaseManager(this);
@@ -297,6 +302,10 @@ public class FoliaShopPlugin extends JavaPlugin {
 
     public AiyatsbusEnchantManager getAiyatsbusEnchantManager() {
         return aiyatsbusEnchantManager;
+    }
+
+    public CraftEnginePackManager getCraftEnginePackManager() {
+        return craftEnginePackManager;
     }
 
     public PurchaseManager getPurchaseManager() {

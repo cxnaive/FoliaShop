@@ -117,6 +117,8 @@ public class GachaMainGUI extends AbstractGUI {
         lore.add("§7每次抽奖: §e" + plugin.getShopConfig().formatCurrency(machine.getCost()));
         if (machine.isBookMode()) {
             lore.add("§7产出: §bAiyatsbus 附魔书");
+        } else if (machine.isCePackMode()) {
+            lore.add("§7产出: §6CraftEngine 物品");
         } else {
             lore.add("§7奖品数量: §e" + machine.getRewards().size() + " 种");
         }

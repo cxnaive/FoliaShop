@@ -166,6 +166,19 @@ public class GachaMachineGUI extends AbstractGUI {
                 return;
             }
 
+            // CE pack 模式：抽 1 件物品（不参与软保底/历史），包装后复用单抽动画 GUI
+            if (machine.isCePackMode()) {
+                List<GachaReward> items = plugin.getGachaManager().drawCePackRewards(machine, 1);
+                if (items.isEmpty()) {
+                    plugin.getEconomyManager().deposit(player, cost);
+                    player.sendMessage("§c物品抽取失败，已退还花费。请检查 CraftEngine 与 pack-pool 配置。");
+                    return;
+                }
+                GachaMachine.PityResult result = new GachaMachine.PityResult(items.get(0), false);
+                new GachaAnimationGUI(plugin, player, machine, result).open();
+                return;
+            }
+
             // 获取保底计数并抽奖
             plugin.getGachaManager().getPityCount(player.getUniqueId(), machine.getId(), pityCount -> {
                 if (!player.isOnline()) return;

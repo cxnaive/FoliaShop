@@ -1,6 +1,7 @@
 package dev.user.shop.gui;
 
 import dev.user.shop.FoliaShopPlugin;
+import dev.user.shop.craftengine.CraftEnginePackManager;
 import dev.user.shop.enchant.AiyatsbusEnchantManager;
 import dev.user.shop.gacha.EnchantBookPool;
 import dev.user.shop.gacha.GachaMachine;
@@ -50,6 +51,12 @@ public class GachaPreviewGUI extends AbstractGUI {
         // 附魔书模式：展示附魔池样本书，而非 rewards 列表
         if (machine.isBookMode()) {
             initializeBookPreview();
+            return;
+        }
+
+        // CE pack 模式：分页展示物品池网格
+        if (machine.isCePackMode()) {
+            initializeCePackPreview();
             return;
         }
 
@@ -214,5 +221,70 @@ public class GachaPreviewGUI extends AbstractGUI {
             case "decay" -> "低等级更常见";
             default -> "随机等级";
         };
+    }
+
+    /**
+     * CE pack 模式预览：分页（28/页）展示物品池网格，每件显示中选概率。
+     */
+    private void initializeCePackPreview() {
+        List<CraftEnginePackManager.PoolEntryInfo> entries =
+            plugin.getCraftEnginePackManager().getPoolInfo(machine.getCePackPool());
+
+        int itemsPerPage = 28;
+        int totalPages = Math.max(1, (int) Math.ceil(entries.size() / (double) itemsPerPage));
+        int startIndex = page * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, entries.size());
+
+        if (entries.isEmpty()) {
+            ItemStack empty = new ItemStack(Material.BARRIER);
+            ItemUtil.setDisplayName(empty, "§c物品池为空");
+            ItemUtil.setLore(empty, List.of("§7未匹配到任何 CE 物品", "§7请检查 packs/tags/items/exclude 配置"));
+            setItem(13, empty);
+        } else {
+            int slot = 10;
+            for (int i = startIndex; i < endIndex; i++) {
+                CraftEnginePackManager.PoolEntryInfo info = entries.get(i);
+                ItemStack display = null;
+                try {
+                    display = info.customItem.buildItemStack(1);
+                } catch (Throwable ignored) {
+                    // 跳过构造失败的物品
+                }
+                if (display == null) continue;
+                while (slot <= 44 && (slot % 9 == 0 || slot % 9 == 8)) slot++;
+                if (slot > 44) break;
+                ItemStack item = display.clone();
+                ItemUtil.addLore(item, List.of(
+                    "",
+                    "§7中选概率: §e" + String.format("%.2f", info.probability * 100) + "%",
+                    "§8" + info.key
+                ));
+                setItem(slot, item);
+                slot++;
+            }
+        }
+
+        // 上一页
+        if (page > 0) {
+            ItemStack prevBtn = ItemUtil.createItemFromKey(plugin,
+                plugin.getShopConfig().getGUIDecoration("prev-page").getMaterial());
+            ItemUtil.setDisplayName(prevBtn, "§e上一页");
+            setItem(45, prevBtn, p -> { page--; initialize(); });
+        }
+        // 下一页
+        if (endIndex < entries.size()) {
+            ItemStack nextBtn = ItemUtil.createItemFromKey(plugin,
+                plugin.getShopConfig().getGUIDecoration("next-page").getMaterial());
+            ItemUtil.setDisplayName(nextBtn, "§e下一页");
+            setItem(53, nextBtn, p -> { page++; initialize(); });
+        }
+        // 页码
+        ItemStack pageInfo = new ItemStack(Material.PAPER);
+        ItemUtil.setDisplayName(pageInfo, "§e第 " + (page + 1) + " / " + totalPages + " 页");
+        ItemUtil.setLore(pageInfo, List.of("§7共 " + entries.size() + " 件物品"));
+        setItem(49, pageInfo);
+
+        // 返回按钮
+        addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
     }
 }

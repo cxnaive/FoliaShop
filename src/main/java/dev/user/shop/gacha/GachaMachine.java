@@ -51,6 +51,11 @@ public class GachaMachine {
     private EnchantBookPool enchantPool;
     private List<org.bukkit.inventory.ItemStack> bookAnimationItems;
 
+    // CraftEngine pack 模式（从 CE pack/tag/物品池抽奖，无 rewards 列表）
+    private boolean cePackMode;
+    private CraftEnginePackPool cePackPool;
+    private List<org.bukkit.inventory.ItemStack> ceAnimationItems;
+
     public GachaMachine(String id, String name, List<String> description, String icon, double cost,
                         int animationDuration, int animationDurationTen, boolean broadcastRare, double broadcastThreshold, int slot,
                         boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability) {
@@ -303,6 +308,10 @@ public class GachaMachine {
         if (bookMode) {
             return bookAnimationItems != null ? new ArrayList<>(bookAnimationItems) : new ArrayList<>();
         }
+        // CE pack 模式：使用加载期预生成的样本物品
+        if (cePackMode) {
+            return ceAnimationItems != null ? new ArrayList<>(ceAnimationItems) : new ArrayList<>();
+        }
         if (cachedAnimationItems == null) {
             cachedAnimationItems = new ArrayList<>();
             for (GachaReward reward : rewards) {
@@ -361,4 +370,15 @@ public class GachaMachine {
 
     public List<org.bukkit.inventory.ItemStack> getBookAnimationItems() { return bookAnimationItems; }
     public void setBookAnimationItems(List<org.bukkit.inventory.ItemStack> bookAnimationItems) { this.bookAnimationItems = bookAnimationItems; }
+
+    // ==================== CraftEngine pack 模式 ====================
+
+    public boolean isCePackMode() { return cePackMode; }
+    public void setCePackMode(boolean cePackMode) { this.cePackMode = cePackMode; }
+
+    public CraftEnginePackPool getCePackPool() { return cePackPool; }
+    public void setCePackPool(CraftEnginePackPool cePackPool) { this.cePackPool = cePackPool; }
+
+    public List<org.bukkit.inventory.ItemStack> getCeAnimationItems() { return ceAnimationItems; }
+    public void setCeAnimationItems(List<org.bukkit.inventory.ItemStack> ceAnimationItems) { this.ceAnimationItems = ceAnimationItems; }
 }
