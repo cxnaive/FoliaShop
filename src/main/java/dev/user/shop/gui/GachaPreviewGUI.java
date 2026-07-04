@@ -1,6 +1,8 @@
 package dev.user.shop.gui;
 
 import dev.user.shop.FoliaShopPlugin;
+import dev.user.shop.enchant.AiyatsbusEnchantManager;
+import dev.user.shop.gacha.EnchantBookPool;
 import dev.user.shop.gacha.GachaMachine;
 import dev.user.shop.gacha.GachaReward;
 import dev.user.shop.util.ItemUtil;
@@ -127,32 +129,90 @@ public class GachaPreviewGUI extends AbstractGUI {
     /**
      * 附魔书模式预览：展示加载期预生成的样本书（附魔池里各附魔各 1 本，满级）
      */
+    /**
+     * 附魔书模式预览：按品质档展示（每档一格，显示中选概率 + 附魔数；管理员可见附魔清单）。
+     * 概率来自 AiyatsbusEnchantManager.getPoolInfo，与实际抽奖共用档位构建逻辑。
+     */
     private void initializeBookPreview() {
-        // 用 getAnimationItems()（书模式返回样本书拷贝，且 null 安全），避免直接用 raw getter
-        List<ItemStack> samples = machine.getAnimationItems();
-        int slot = 10;
-        for (ItemStack sample : samples) {
-            if (sample == null) continue;
-            // 跳过左右边框列；上限 44，超出即停止
-            while (slot <= 44 && (slot % 9 == 0 || slot % 9 == 8)) slot++;
-            if (slot > 44) break;
-            ItemStack item = sample.clone();
-            ItemUtil.addLore(item, List.of("", "§7本扭蛋机产出的附魔之一", "§7品质与等级按附魔池配置随机"));
-            setItem(slot, item);
-            slot++;
+        EnchantBookPool pool = machine.getEnchantPool();
+        List<AiyatsbusEnchantManager.TierInfo> tiers = plugin.getAiyatsbusEnchantManager().getPoolInfo(pool);
+        String levelDesc = levelDesc(pool);
+
+        if (tiers.isEmpty()) {
+            ItemStack empty = new ItemStack(Material.BARRIER);
+            ItemUtil.setDisplayName(empty, "§c附魔池为空");
+            ItemUtil.setLore(empty, List.of("§7未匹配到任何可用附魔", "§7请检查 rarities/groups/exclude 配置"));
+            setItem(13, empty);
+        } else {
+            int slot = 10;
+            for (AiyatsbusEnchantManager.TierInfo tier : tiers) {
+                while (slot <= 44 && (slot % 9 == 0 || slot % 9 == 8)) slot++;
+                if (slot > 44) break;
+                setItem(slot, createTierItem(tier, levelDesc));
+                slot++;
+            }
         }
 
         // 标题信息
         ItemStack info = new ItemStack(Material.PAPER);
         ItemUtil.setDisplayName(info, "§e附魔书池预览");
         ItemUtil.setLore(info, List.of(
-            "§7本扭蛋机产出 Aiyatsbus 附魔书",
             "§7单抽 1 本，10 连抽 10 本",
-            "§7品质按衰减公式加权，等级按配置决定"
+            "§7品质按衰减公式加权 · " + levelDesc,
+            hasAdminPermission ? "§7管理员可见各档附魔清单" : "§7悬停查看各品质中选概率"
         ));
         setItem(49, info);
 
         // 返回按钮
         addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
+    }
+
+    private ItemStack createTierItem(AiyatsbusEnchantManager.TierInfo tier, String levelDesc) {
+        ItemStack item = new ItemStack(Material.ENCHANTED_BOOK);
+        String color = rarityColor(tier.rarityKey);
+        ItemUtil.setDisplayName(item, color + tier.rarityName + " §7附魔");
+
+        List<String> lore = new ArrayList<>();
+        lore.add("§7中选概率: §e" + String.format("%.2f", tier.probability * 100) + "%");
+        lore.add("§7该档附魔: §f" + tier.enchantCount + " 种");
+        lore.add("§7出货等级: §f" + levelDesc);
+        if (hasAdminPermission && !tier.enchantNames.isEmpty()) {
+            lore.add("§7附魔清单:");
+            int show = Math.min(tier.enchantNames.size(), 14);
+            for (int i = 0; i < show; i++) {
+                lore.add("§8- " + tier.enchantNames.get(i));
+            }
+            if (tier.enchantNames.size() > 14) {
+                lore.add("§8- ...等共 " + tier.enchantNames.size() + " 种");
+            }
+        }
+        ItemUtil.setLore(item, lore);
+        return item;
+    }
+
+    /** 品质 key → §颜色（近似 Aiyatsbus rarity.yml 配色） */
+    private String rarityColor(String key) {
+        return switch (key == null ? "" : key.toLowerCase()) {
+            case "common" -> "§f";      // 汉白玉
+            case "uncommon" -> "§a";    // 毛绿
+            case "rare" -> "§b";        // 霁青
+            case "epic" -> "§d";        // 夹竹桃红
+            case "legendary" -> "§6";   // 淡橘橙
+            case "splendid" -> "§e";    // 油菜花黄
+            case "curse" -> "§c";       // 鹤顶红
+            case "artifact" -> "§d";    // 粉团花红
+            default -> "§7";
+        };
+    }
+
+    /** 等级模式 → 中文描述 */
+    private String levelDesc(EnchantBookPool pool) {
+        if (pool == null) return "未知";
+        return switch (pool.getLevelMode()) {
+            case "max" -> "恒为满级";
+            case "fixed" -> "固定等级 " + pool.getLevelFixed();
+            case "decay" -> "低等级更常见";
+            default -> "随机等级";
+        };
     }
 }

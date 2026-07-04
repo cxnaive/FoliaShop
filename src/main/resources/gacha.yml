@@ -313,6 +313,17 @@ machines:
       # common/uncommon/rare/epic/legendary/splendid/curse/artifact
       # 不配置则默认 [common, uncommon, rare, epic, legendary]
       rarities: [common, uncommon, rare, epic, legendary]
+      #
+      # 【附魔池自动排除的附魔】（抽奖与预览计数都不计入）
+      #   - enable: false 的附魔（被关闭的，不会进池）
+      #   - inaccessible: true 的附魔（如 artifact 皮肤档）
+      #   - weight <= 0 的附魔（Aiyatsbus 本身也永远抽不到）
+      #   - 你在下方 exclude 里列出的附魔 id
+      #   - 配了 groups 时，不在任何指定分组内的附魔
+      #   - 第三方插件注册进 Aiyatsbus 的附魔，只要满足以上条件同样进池（注册表实时读取）
+      # 注意：disable_worlds（按世界禁用）不会被过滤——扭蛋产出的是实体书，
+      #       附魔在特定世界是否生效由 Aiyatsbus 运行时决定。
+      #
       # 品质衰减：weight[i] = base * ratio^i（i 为档位序号，从最低档起）
       # ratio<1 时高档越来越稀有；天然适配任意档位数量
       rarity-decay:

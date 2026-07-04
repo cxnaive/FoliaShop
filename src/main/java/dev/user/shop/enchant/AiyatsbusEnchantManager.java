@@ -87,23 +87,8 @@ public class AiyatsbusEnchantManager {
     public DrawnBook drawBook(EnchantBookPool pool) {
         if (!enabled || pool == null || pool.getRarities().isEmpty()) return null;
         try {
-            AiyatsbusAPI api = Aiyatsbus.INSTANCE.api();
-            AiyatsbusEnchantmentManager mgr = api.getEnchantmentManager();
-
-            // 预过滤每个品质档，仅保留有可用附魔的档（保证一定能抽出）
-            List<List<AiyatsbusEnchantment>> tiers = new ArrayList<>();
-            List<Double> weights = new ArrayList<>();
-            double total = 0;
-            for (int i = 0; i < pool.getRarities().size(); i++) {
-                Rarity rarity = AiyatsbusUtilsKt.aiyatsbusRarity(pool.getRarities().get(i));
-                if (rarity == null) continue;
-                List<AiyatsbusEnchantment> filtered = filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool);
-                if (filtered.isEmpty()) continue;
-                tiers.add(filtered);
-                double w = pool.weightAt(i);
-                weights.add(w);
-                total += w;
-            }
+            List<DrawableTier> tiers = buildDrawableTiers(pool);
+            double total = totalTierWeight(tiers);
             if (tiers.isEmpty() || total <= 0) return null;
 
             // 按衰减权重选档
@@ -111,17 +96,17 @@ public class AiyatsbusEnchantManager {
             double acc = 0;
             int chosen = tiers.size() - 1;
             for (int i = 0; i < tiers.size(); i++) {
-                acc += weights.get(i);
+                acc += tiers.get(i).weight;
                 if (r <= acc) {
                     chosen = i;
                     break;
                 }
             }
-            List<AiyatsbusEnchantment> tierEnchants = tiers.get(chosen);
-            double tierProb = weights.get(chosen) / total;
+            DrawableTier tier = tiers.get(chosen);
+            double tierProb = tier.weight / total;
 
             // 档内按附魔自身 weight 加权抽 1 个
-            AiyatsbusEnchantment ench = AiyatsbusUtilsKt.drawEt(tierEnchants);
+            AiyatsbusEnchantment ench = AiyatsbusUtilsKt.drawEt(tier.enchants);
             if (ench == null) return null;
 
             int level = resolveLevel(ench, pool);
@@ -131,6 +116,89 @@ public class AiyatsbusEnchantManager {
         } catch (Throwable e) {
             plugin.getLogger().warning("抽取附魔书失败: " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * 计算附魔池的有效档位信息（供预览展示）。
+     * 与 {@link #drawBook} 共用 {@link #buildDrawableTiers}，确保「预览看到的概率 = 实际抽奖概率」。
+     * 返回顺序与池配置 rarities 一致（跳过过滤后为空的档）。
+     */
+    public List<TierInfo> getPoolInfo(EnchantBookPool pool) {
+        List<TierInfo> info = new ArrayList<>();
+        if (!enabled || pool == null) return info;
+        try {
+            List<DrawableTier> tiers = buildDrawableTiers(pool);
+            double total = totalTierWeight(tiers);
+            if (total <= 0) return info;
+            for (DrawableTier t : tiers) {
+                List<String> names = new ArrayList<>();
+                for (AiyatsbusEnchantment e : t.enchants) {
+                    try {
+                        names.add(e.getBasicData().getName());
+                    } catch (Throwable ignored) {
+                        // 跳过取名失败的附魔
+                    }
+                }
+                String displayName = t.rarity.getName();
+                info.add(new TierInfo(t.rarityKey, displayName, t.weight / total, t.enchants.size(), names));
+            }
+        } catch (Throwable e) {
+            plugin.getLogger().warning("获取附魔池信息失败: " + e.getMessage());
+        }
+        return info;
+    }
+
+    /**
+     * 构建有效（过滤后非空）的品质档列表，按池配置 rarities 顺序。drawBook 与 getPoolInfo 共用。
+     */
+    private List<DrawableTier> buildDrawableTiers(EnchantBookPool pool) {
+        List<DrawableTier> tiers = new ArrayList<>();
+        for (int i = 0; i < pool.getRarities().size(); i++) {
+            String key = pool.getRarities().get(i);
+            Rarity rarity = AiyatsbusUtilsKt.aiyatsbusRarity(key);
+            if (rarity == null) continue;
+            List<AiyatsbusEnchantment> filtered = filterEnchants(AiyatsbusUtilsKt.aiyatsbusEts(rarity), pool);
+            if (filtered.isEmpty()) continue;
+            tiers.add(new DrawableTier(key, rarity, filtered, pool.weightAt(i)));
+        }
+        return tiers;
+    }
+
+    private double totalTierWeight(List<DrawableTier> tiers) {
+        double sum = 0;
+        for (DrawableTier t : tiers) sum += t.weight;
+        return sum;
+    }
+
+    /** 一个有效品质档（过滤后的附魔列表 + 衰减权重） */
+    private static class DrawableTier {
+        final String rarityKey;
+        final Rarity rarity;
+        final List<AiyatsbusEnchantment> enchants;
+        final double weight;
+        DrawableTier(String rarityKey, Rarity rarity, List<AiyatsbusEnchantment> enchants, double weight) {
+            this.rarityKey = rarityKey;
+            this.rarity = rarity;
+            this.enchants = enchants;
+            this.weight = weight;
+        }
+    }
+
+    /** 预览用：一个品质档的中选概率与附魔清单 */
+    public static class TierInfo {
+        public final String rarityKey;
+        public final String rarityName;
+        /** 该档的有效中选概率（仅在非空档上归一化） */
+        public final double probability;
+        public final int enchantCount;
+        public final List<String> enchantNames;
+        public TierInfo(String rarityKey, String rarityName, double probability, int enchantCount, List<String> enchantNames) {
+            this.rarityKey = rarityKey;
+            this.rarityName = rarityName;
+            this.probability = probability;
+            this.enchantCount = enchantCount;
+            this.enchantNames = enchantNames;
         }
     }
 
