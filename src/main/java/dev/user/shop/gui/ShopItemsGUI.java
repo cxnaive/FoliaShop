@@ -22,6 +22,7 @@ public class ShopItemsGUI extends AbstractGUI {
     private final ShopManager.SubCategory subcategory;
     private final java.util.Map<Integer, ShopItem> slotToItem;
     private final java.util.Map<Integer, ShopManager.SubCategory> slotToSubcategory;
+    private int page = 0;
 
     public ShopItemsGUI(FoliaShopPlugin plugin, Player player, ShopManager.ShopCategory category) {
         super(plugin, player, MessageUtil.convertMiniMessageToLegacy(category.getName()), 54);
@@ -47,6 +48,13 @@ public class ShopItemsGUI extends AbstractGUI {
         fillBorder();
         slotToItem.clear();
         slotToSubcategory.clear();
+
+        // 清空内部槽位（翻页复用同一 inventory，需清除上一页残留物品）
+        for (int i = 10; i <= 43; i++) {
+            if (i % 9 != 0 && i % 9 != 8) {
+                inventory.setItem(i, null);
+            }
+        }
 
         // 如果在父分类层级，显示子分类
         if (subcategory == null && category.hasSubcategories()) {
@@ -85,26 +93,57 @@ public class ShopItemsGUI extends AbstractGUI {
             items = plugin.getShopManager().getItemsByCategory(category.getId());
         }
 
-        for (ShopItem shopItem : items) {
-            if (!shopItem.isEnabled()) continue;
+        // 计算可用物品槽位（内部槽 10-43 减去子分类占用）
+        java.util.List<Integer> freeSlots = new java.util.ArrayList<>();
+        for (int i = 10; i <= 43; i++) {
+            if (i % 9 == 0 || i % 9 == 8) continue;
+            if (slotToSubcategory.containsKey(i)) continue;
+            freeSlots.add(i);
+        }
 
-            ItemStack item = createItemDisplay(shopItem);
-            if (item == null) continue;
+        if (page < 0) page = 0;
+        int freeCount = Math.max(1, freeSlots.size());
+        int totalPages = (int) Math.ceil(items.size() / (double) freeCount);
+        if (totalPages > 0 && page >= totalPages) page = totalPages - 1; // 物品减少时 clamp 上界
+        int startIndex = page * freeCount;
+        int endIndex = Math.min(startIndex + freeCount, items.size());
 
-            int slot = shopItem.getSlot();
-            if (slot > 0 && slot < 45 && slot % 9 != 0 && slot % 9 != 8 && inventory.getItem(slot) == null) {
-                setItem(slot, item);  // 不设置action，让GUIListener处理点击
-                slotToItem.put(slot, shopItem);
-            } else {
-                // 自动寻找空位
-                for (int i = 10; i < 44; i++) {
-                    if (i % 9 == 0 || i % 9 == 8) continue;
-                    if (inventory.getItem(i) == null) {
-                        setItem(i, item);  // 不设置action，让GUIListener处理点击
-                        slotToItem.put(i, shopItem);
-                        break;
+        if (totalPages <= 1) {
+            // 物品不多：按配置 slot 放置（保持原有布局，不分页）
+            for (ShopItem shopItem : items) {
+                if (!shopItem.isEnabled()) continue;
+
+                ItemStack item = createItemDisplay(shopItem);
+                if (item == null) continue;
+
+                int slot = shopItem.getSlot();
+                if (slot > 0 && slot < 45 && slot % 9 != 0 && slot % 9 != 8 && inventory.getItem(slot) == null) {
+                    setItem(slot, item);  // 不设置action，让GUIListener处理点击
+                    slotToItem.put(slot, shopItem);
+                } else {
+                    // 自动寻找空位
+                    for (int i = 10; i < 44; i++) {
+                        if (i % 9 == 0 || i % 9 == 8) continue;
+                        if (inventory.getItem(i) == null) {
+                            setItem(i, item);  // 不设置action，让GUIListener处理点击
+                            slotToItem.put(i, shopItem);
+                            break;
+                        }
                     }
                 }
+            }
+        } else {
+            // 物品较多（如 namespace 自动填充）：网格顺序分页
+            int slotIdx = 0;
+            for (int i = startIndex; i < endIndex; i++) {
+                ShopItem shopItem = items.get(i);
+                if (!shopItem.isEnabled()) continue;
+                ItemStack item = createItemDisplay(shopItem);
+                if (item == null) continue;
+                if (slotIdx >= freeSlots.size()) break;
+                int slot = freeSlots.get(slotIdx++);
+                setItem(slot, item);
+                slotToItem.put(slot, shopItem);
             }
         }
 
@@ -117,6 +156,31 @@ public class ShopItemsGUI extends AbstractGUI {
 
         // 关闭按钮
         addCloseButton(52);
+
+        // 分页按钮（仅物品超过一页时显示）
+        if (totalPages > 1) {
+            if (page > 0) {
+                var prevDecor = plugin.getShopConfig().getGUIDecoration("prev-page");
+                ItemStack prevBtn = ItemUtil.createItemFromKey(plugin,
+                    prevDecor != null ? prevDecor.getMaterial() : "minecraft:arrow");
+                if (prevBtn != null) {
+                    ItemUtil.setDisplayName(prevBtn, "§e上一页");
+                    setItem(45, prevBtn, p -> { page--; initialize(); });
+                }
+            }
+            if (endIndex < items.size()) {
+                var nextDecor = plugin.getShopConfig().getGUIDecoration("next-page");
+                ItemStack nextBtn = ItemUtil.createItemFromKey(plugin,
+                    nextDecor != null ? nextDecor.getMaterial() : "minecraft:arrow");
+                if (nextBtn != null) {
+                    ItemUtil.setDisplayName(nextBtn, "§e下一页");
+                    setItem(53, nextBtn, p -> { page++; initialize(); });
+                }
+            }
+            ItemStack pageInfo = new ItemStack(Material.PAPER);
+            ItemUtil.setDisplayName(pageInfo, "§e第 " + (page + 1) + " / " + totalPages + " 页");
+            setItem(48, pageInfo);
+        }
     }
 
     /**

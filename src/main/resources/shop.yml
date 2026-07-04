@@ -89,6 +89,37 @@ categories:
     icon: "minecraft:diamond"
     slot: 16
 
+  # ========== CraftEngine namespace 自动填充示例（默认禁用） ==========
+  # 一个分类/子分类自动装满某个 CE namespace 下的全部物品，省去逐件手配。
+  # auto-fill 段：物品来源（packs=namespace / tags / items / exclude，复用扭蛋语法）。
+  # defaults 段：每件物品的价格/库存/限额。
+  # 物品仅存内存（不写 DB）、无限库存；buy-price 支持 "min~max"（每玩家每天随机区间价）。
+  # 默认 sell-price=0 = 不可回售（避免无限库存+可卖套利）。
+  ce_furniture:
+    name: "<aqua>家具坊"
+    icon: "minecraft:chest"
+    slot: 19
+    enabled: false                       # 确认 namespace 正确后改 true
+    auto-fill:
+      packs: [furniture]                 # CE namespace（pack.yml 里声明的 namespace，不是文件夹名）
+      # tags: [myserver:chair]           # 可选：用 CE tag 圈子集
+      # exclude: [furniture:debug]
+    defaults:
+      buy-price: "100~500"              # 每日随机区间（每玩家每天固定，PriceUtil）
+      # sell-price: 0                   # 默认 0 = 不可回售；如开启，务必 buy-price 下限 ≥ sell-price
+      # stock: -1                       # autoFill 物品仅存内存，强制无限库存（配正数会被忽略并警告）
+      # daily-limit: 0; player-limit: 0
+    subcategories:
+      chairs:                           # 子分类级 auto-fill：用 tag 圈子集
+        name: "椅子"
+        icon: "minecraft:oak_stairs"
+        slot: 11
+        auto-fill:
+          packs: [furniture]
+          tags: [furniture:chair]
+        defaults:
+          buy-price: "80~300"
+
 # =============================
 # 商店商品列表
 # =============================

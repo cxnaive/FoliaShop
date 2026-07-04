@@ -188,11 +188,17 @@ public class PurchaseManager {
                 }
             }
 
-            int actualAmount = atomicReduceStock(conn, shopItem.getId(), amount);
-            if (actualAmount == 0) {
-                conn.rollback();
-                sendCallback(player, task.callback, new PurchaseResult(false, "库存不足", null, 0, 0, 0));
-                return;
+            int actualAmount;
+            if (shopItem.hasUnlimitedStock()) {
+                // 无限库存（含 namespace 自动填充物品，无 DB 行）：不扣减库存，按请求数量成交
+                actualAmount = amount;
+            } else {
+                actualAmount = atomicReduceStock(conn, shopItem.getId(), amount);
+                if (actualAmount == 0) {
+                    conn.rollback();
+                    sendCallback(player, task.callback, new PurchaseResult(false, "库存不足", null, 0, 0, 0));
+                    return;
+                }
             }
             // 调整实际购买数量
             if (actualAmount != amount) {

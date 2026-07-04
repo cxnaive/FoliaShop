@@ -28,6 +28,7 @@ public class ShopItem {
     private List<String> commands; // 购买后执行的命令
     private List<String> conditions; // 购买条件
     private boolean giveItem; // 是否给予物品（默认true）
+    private boolean autoFill; // 是否为 namespace 自动填充物品（仅内存，不写 DB）
 
     public ShopItem(String id, String itemKey, double buyPrice, double sellPrice, int stock, String category, int slot) {
         this(id, itemKey, buyPrice, sellPrice, 0, stock, category, slot, 0, null);
@@ -126,4 +127,7 @@ public class ShopItem {
 
     public boolean isGiveItem() { return giveItem; }
     public void setGiveItem(boolean giveItem) { this.giveItem = giveItem; }
+
+    public boolean isAutoFill() { return autoFill; }
+    public void setAutoFill(boolean autoFill) { this.autoFill = autoFill; }
 }

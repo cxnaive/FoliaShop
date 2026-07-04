@@ -42,6 +42,8 @@ public class ShopManager {
         loadItemsFromDatabaseAsync(() -> {
             // 数据库加载完成后，从配置加载进行增量更新
             loadItemsFromConfig();
+            // 从 CraftEngine namespace 自动填充商品（仅内存）
+            loadAutoFillItems();
             // 重建缓存
             rebuildItemCache();
 
@@ -66,6 +68,9 @@ public class ShopManager {
 
         // 从配置加载所有商品（并保存到数据库）
         loadItemsFromConfig();
+
+        // 从 CraftEngine namespace 自动填充商品（仅内存）
+        loadAutoFillItems();
 
         // 重建物品缓存
         rebuildItemCache();
@@ -166,11 +171,13 @@ public class ShopManager {
                     int subSlot = subCatSection.getInt("slot", 0);
                     SubCategory sub = new SubCategory(subKey, subName, subIcon, subSlot);
                     sub.setParentId(key);
+                    sub.setAutoFill(AutoFillConfig.fromConfig(subCatSection));
                     subcategories.put(subKey, sub);
                 }
             }
 
             ShopCategory category = new ShopCategory(key, name, icon, slot, enabled, sellOnly, dailySellLimit, subcategories);
+            category.setAutoFill(AutoFillConfig.fromConfig(catSection));
             if (categories.containsKey(key)) {
                 plugin.getLogger().warning("分类 '" + key + "' 重复定义，后加载的配置将覆盖之前的");
             }
@@ -182,6 +189,56 @@ public class ShopManager {
                 plugin.getLogger().info("分类 '" + key + "' 为回收专用，不在商店显示");
             }
         }
+    }
+
+    /**
+     * 从 CraftEngine namespace 自动填充商品（仅内存，不写 DB）。
+     * 遍历所有带 auto-fill 的分类与子分类，枚举 CE 物品 key，为每件创建 ShopItem。
+     * 必须在主线程调用（CE 物品需主线程构造）。
+     */
+    private void loadAutoFillItems() {
+        if (plugin.getCraftEnginePackManager() == null) return;
+        int count = 0;
+        for (ShopCategory category : categories.values()) {
+            if (category.hasAutoFill()) {
+                count += loadAutoFillForCategory(category.getAutoFill(), category.getId());
+            }
+            for (SubCategory sub : category.getSubcategories().values()) {
+                if (sub.hasAutoFill()) {
+                    count += loadAutoFillForCategory(sub.getAutoFill(), category.getId() + ":" + sub.getId());
+                }
+            }
+        }
+        if (count > 0) {
+            plugin.getLogger().info("从 CraftEngine namespace 自动填充了 " + count + " 个商店商品");
+        }
+    }
+
+    private int loadAutoFillForCategory(AutoFillConfig af, String categoryPath) {
+        // autoFill 物品仅存内存（不在 shop_items 表），库存无法持久化，强制无限库存
+        if (af.getStock() >= 0) {
+            plugin.getLogger().warning("namespace 自动填充（" + categoryPath + "）的 stock 配置将被忽略——autoFill 物品仅存内存，强制无限库存");
+        }
+        java.util.List<String> keys = plugin.getCraftEnginePackManager().getPoolItemKeys(af.getPool());
+        int count = 0;
+        for (String key : keys) {
+            if (items.containsKey(key)) continue; // 已有（手工配置/DB），跳过避免覆盖
+            try {
+                ItemStack displayItem = ItemUtil.createItemFromKey(plugin, key);
+                if (displayItem == null) continue;
+                ShopItem shopItem = new ShopItem(key, key, af.getBuyPriceMin(), af.getSellPrice(),
+                    -1, categoryPath, 0, af.getDailyLimit());
+                shopItem.setBuyPriceMax(af.getBuyPriceMax());
+                shopItem.setPlayerLimit(af.getPlayerLimit());
+                shopItem.setDisplayItem(displayItem);
+                shopItem.setAutoFill(true);
+                items.put(key, shopItem);
+                count++;
+            } catch (Throwable e) {
+                plugin.getLogger().warning("自动填充 CE 物品 " + key + " 失败: " + e.getMessage());
+            }
+        }
+        return count;
     }
 
     /**
@@ -417,6 +474,8 @@ public class ShopManager {
     }
 
     public void saveItem(ShopItem item) {
+        // namespace 自动填充物品仅存内存，不写 DB
+        if (item.isAutoFill()) return;
         plugin.getDatabaseQueue().submit("saveShopItem", conn -> {
             boolean isMySQL = plugin.getDatabaseManager().isMySQL();
 
@@ -1388,6 +1447,12 @@ public class ShopManager {
         public boolean hasDailySellLimit() { return dailySellLimit > 0; }
         public Map<String, SubCategory> getSubcategories() { return subcategories; }
         public boolean hasSubcategories() { return !subcategories.isEmpty(); }
+
+        // namespace 自动填充配置（可空）
+        private AutoFillConfig autoFill;
+        public AutoFillConfig getAutoFill() { return autoFill; }
+        public void setAutoFill(AutoFillConfig autoFill) { this.autoFill = autoFill; }
+        public boolean hasAutoFill() { return autoFill != null; }
     }
 
     public static class SubCategory {
@@ -1413,6 +1478,12 @@ public class ShopManager {
 
         public void setParentId(String parentId) { this.parentId = parentId; }
         public String getParentId() { return parentId != null ? parentId : ""; }
+
+        // namespace 自动填充配置（可空）
+        private AutoFillConfig autoFill;
+        public AutoFillConfig getAutoFill() { return autoFill; }
+        public void setAutoFill(AutoFillConfig autoFill) { this.autoFill = autoFill; }
+        public boolean hasAutoFill() { return autoFill != null; }
     }
 
     /**

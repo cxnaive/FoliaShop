@@ -148,6 +148,22 @@ public class CraftEnginePackManager {
     }
 
     /**
+     * 列举池中所有物品的 CE key（namespace:value），复用 buildPool 的过滤逻辑。供商店 namespace 自动填充用。
+     */
+    public List<String> getPoolItemKeys(CraftEnginePackPool pool) {
+        List<String> keys = new ArrayList<>();
+        if (pool == null) return keys;
+        try {
+            for (PoolEntry pe : buildPool(pool)) {
+                keys.add(pe.key.asString());
+            }
+        } catch (Throwable e) {
+            plugin.getLogger().warning("列举 CE 物品池失败: " + e.getMessage());
+        }
+        return keys;
+    }
+
+    /**
      * 构建有效池：loadedItems() 按 packs/tags/items 过滤，减去 exclude，附加权重（覆盖或 1.0）。
      */
     private List<PoolEntry> buildPool(CraftEnginePackPool pool) {
