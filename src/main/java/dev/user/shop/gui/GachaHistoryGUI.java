@@ -86,8 +86,29 @@ public class GachaHistoryGUI extends AbstractGUI {
     }
 
     private ItemStack createRecordItem(GachaManager.GachaRecord record) {
-        // 根据物品key尝试获取物品
-        ItemStack item = ItemUtil.createItemFromKey(plugin, record.getItemKey());
+        ItemStack item = null;
+
+        // 附魔书记录：按 reward_id (book:<enchId>:<level>) 重建带 Aiyatsbus 附魔的书。
+        // 用最后一个冒号分割等级，兼容 enchId 内部可能含冒号的情形。
+        String rewardId = record.getRewardId();
+        if (rewardId != null && rewardId.startsWith("book:")) {
+            String rest = rewardId.substring(5);
+            int lastColon = rest.lastIndexOf(':');
+            if (lastColon > 0) {
+                String enchId = rest.substring(0, lastColon);
+                try {
+                    int level = Integer.parseInt(rest.substring(lastColon + 1));
+                    item = plugin.getAiyatsbusEnchantManager().buildBook(enchId, level);
+                } catch (NumberFormatException ignored) {
+                    // 等级解析失败，走回退
+                }
+            }
+        }
+
+        // 回退：按物品 key 构造普通物品
+        if (item == null) {
+            item = ItemUtil.createItemFromKey(plugin, record.getItemKey());
+        }
         if (item == null) {
             item = new ItemStack(Material.CHEST);
         }

@@ -12,6 +12,7 @@ libraries:
   - org.lz4:lz4-java:1.8.0
 
 depend: [XConomy, CraftEngine]
+softdepend: [PlayerPoints, Aiyatsbus]
 
 commands:
   foliashop:

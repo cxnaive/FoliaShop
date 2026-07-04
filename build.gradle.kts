@@ -33,6 +33,13 @@ dependencies {
     // PlayerPoints
     compileOnly("org.black_ixx:playerpoints:3.3.3")
 
+    // Aiyatsbus 更多附魔插件（软依赖，本地构建的 jar）
+    // 路径相对于本项目目录；会自动匹配 Aiyatsbus-*.jar（排除 sources），忽略版本号
+    compileOnly(fileTree("../aiyatsbus/plugin/build/libs") {
+        include("Aiyatsbus-*.jar")
+        exclude("*-sources.jar")
+    })
+
     // 数据库连接池和驱动 (由服务器通过 plugin.yml libraries 加载)
     compileOnly("com.zaxxer:HikariCP:6.2.1")
     compileOnly("com.h2database:h2:2.3.232")

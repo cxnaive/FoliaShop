@@ -45,6 +45,12 @@ public class GachaPreviewGUI extends AbstractGUI {
             }
         }
 
+        // 附魔书模式：展示附魔池样本书，而非 rewards 列表
+        if (machine.isBookMode()) {
+            initializeBookPreview();
+            return;
+        }
+
         List<GachaReward> rewards = sortedRewards;
         int itemsPerPage = 28; // 4行 * 7列
         int startIndex = page * itemsPerPage;
@@ -113,6 +119,38 @@ public class GachaPreviewGUI extends AbstractGUI {
         ItemStack pageInfo = new ItemStack(Material.PAPER);
         ItemUtil.setDisplayName(pageInfo, "§e第 " + (page + 1) + " 页");
         setItem(49, pageInfo);
+
+        // 返回按钮
+        addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());
+    }
+
+    /**
+     * 附魔书模式预览：展示加载期预生成的样本书（附魔池里各附魔各 1 本，满级）
+     */
+    private void initializeBookPreview() {
+        // 用 getAnimationItems()（书模式返回样本书拷贝，且 null 安全），避免直接用 raw getter
+        List<ItemStack> samples = machine.getAnimationItems();
+        int slot = 10;
+        for (ItemStack sample : samples) {
+            if (sample == null) continue;
+            // 跳过左右边框列；上限 44，超出即停止
+            while (slot <= 44 && (slot % 9 == 0 || slot % 9 == 8)) slot++;
+            if (slot > 44) break;
+            ItemStack item = sample.clone();
+            ItemUtil.addLore(item, List.of("", "§7本扭蛋机产出的附魔之一", "§7品质与等级按附魔池配置随机"));
+            setItem(slot, item);
+            slot++;
+        }
+
+        // 标题信息
+        ItemStack info = new ItemStack(Material.PAPER);
+        ItemUtil.setDisplayName(info, "§e附魔书池预览");
+        ItemUtil.setLore(info, List.of(
+            "§7本扭蛋机产出 Aiyatsbus 附魔书",
+            "§7单抽 1 本，10 连抽 10 本",
+            "§7品质按衰减公式加权，等级按配置决定"
+        ));
+        setItem(49, info);
 
         // 返回按钮
         addBackButton(48, () -> new GachaMachineGUI(plugin, player, machine).open());

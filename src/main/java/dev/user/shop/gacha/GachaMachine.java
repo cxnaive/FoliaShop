@@ -46,6 +46,11 @@ public class GachaMachine {
     private List<GachaReward> nonPityRewards;
     private List<org.bukkit.inventory.ItemStack> cachedAnimationItems;
 
+    // 附魔书模式（书模式扭蛋机：抽奖产出 Aiyatsbus 附魔书，无 rewards 列表）
+    private boolean bookMode;
+    private EnchantBookPool enchantPool;
+    private List<org.bukkit.inventory.ItemStack> bookAnimationItems;
+
     public GachaMachine(String id, String name, List<String> description, String icon, double cost,
                         int animationDuration, int animationDurationTen, boolean broadcastRare, double broadcastThreshold, int slot,
                         boolean enabled, boolean pityEnabled, int pityStart, int pityMax, double pityTargetMaxProbability) {
@@ -294,6 +299,10 @@ public class GachaMachine {
      * 获取动画物品列表（带缓存）
      */
     public synchronized List<org.bukkit.inventory.ItemStack> getAnimationItems() {
+        // 书模式：使用加载期预生成的样本书
+        if (bookMode) {
+            return bookAnimationItems != null ? new ArrayList<>(bookAnimationItems) : new ArrayList<>();
+        }
         if (cachedAnimationItems == null) {
             cachedAnimationItems = new ArrayList<>();
             for (GachaReward reward : rewards) {
@@ -341,4 +350,15 @@ public class GachaMachine {
     public int getMilepostInterval() { return milepostInterval; }
     public int getMilepostMaxPicks() { return milepostMaxPicks; }
     public boolean isMilepostEnabled() { return milepostInterval > 0; }
+
+    // ==================== 附魔书模式 ====================
+
+    public boolean isBookMode() { return bookMode; }
+    public void setBookMode(boolean bookMode) { this.bookMode = bookMode; }
+
+    public EnchantBookPool getEnchantPool() { return enchantPool; }
+    public void setEnchantPool(EnchantBookPool enchantPool) { this.enchantPool = enchantPool; }
+
+    public List<org.bukkit.inventory.ItemStack> getBookAnimationItems() { return bookAnimationItems; }
+    public void setBookAnimationItems(List<org.bukkit.inventory.ItemStack> bookAnimationItems) { this.bookAnimationItems = bookAnimationItems; }
 }

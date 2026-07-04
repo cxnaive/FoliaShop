@@ -1,6 +1,7 @@
 package dev.user.shop.gacha;
 
 import dev.user.shop.FoliaShopPlugin;
+import dev.user.shop.enchant.AiyatsbusEnchantManager;
 import dev.user.shop.util.ItemUtil;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
@@ -83,12 +84,49 @@ public class GachaManager {
                 milepostMaxPicks = milepostSection.getInt("max-picks", 0);
             }
 
+            // 检测附魔书模式（mode: ENCHANT_BOOK，或配置了 enchant-pool 段）
+            String mode = machineSection.getString("mode", "");
+            ConfigurationSection poolSection = machineSection.getConfigurationSection("enchant-pool");
+            boolean isBookMachine = "ENCHANT_BOOK".equalsIgnoreCase(mode) || poolSection != null;
+            EnchantBookPool pool = null;
+            if (isBookMachine) {
+                pool = EnchantBookPool.fromConfig(poolSection);
+                if (pool == null || pool.getRarities().isEmpty()) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 配置为附魔书模式但缺少有效的 enchant-pool，已跳过");
+                    continue;
+                }
+            }
+
             GachaMachine machine = new GachaMachine(
                 machineId, name, description, icon, cost,
                 animationDuration, animationDurationTen, broadcastRare, broadcastThreshold, slot,
                 enabled, pityEnabled, pityStart, pityMax, pityTargetMaxProb,
                 displayConfig, iconComponents, milepostInterval, milepostMaxPicks
             );
+
+            // 附魔书模式：配置池 + 预生成动画样本书，跳过 rewards 解析与总概率检查
+            if (isBookMachine) {
+                machine.setBookMode(true);
+                machine.setEnchantPool(pool);
+                if (!plugin.getAiyatsbusEnchantManager().isEnabled()) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 为附魔书模式，但 Aiyatsbus 插件未安装/未就绪，该扭蛋机已禁用");
+                    machine.setEnabled(false);
+                } else {
+                    List<ItemStack> samples = plugin.getAiyatsbusEnchantManager().sampleAnimationBooks(pool, 16);
+                    if (samples.isEmpty()) {
+                        // 池里没有任何可用附魔：禁用机器，避免抽奖时动画越界 / 抽空
+                        plugin.getLogger().warning("扭蛋机 '" + machineId + "' 的附魔池未匹配到任何可用附魔（检查 rarities/groups/exclude 配置），该扭蛋机已禁用");
+                        machine.setEnabled(false);
+                    } else {
+                        machine.setBookAnimationItems(samples);
+                    }
+                }
+                if (machines.containsKey(machineId)) {
+                    plugin.getLogger().warning("扭蛋机 '" + machineId + "' 重复定义，后加载的配置将覆盖之前的");
+                }
+                machines.put(machineId, machine);
+                continue;
+            }
 
             // 加载奖品
             // 先尝试作为 ConfigurationSection 读取（支持 comments 和复杂结构）
@@ -258,6 +296,13 @@ public class GachaManager {
      */
     public void performTenGacha(GachaMachine machine, int pityCount, UUID playerUuid,
                                 Consumer<TenGachaResult> callback) {
+        // 附魔书模式：直接抽 10 本书包装为 GachaReward，跳过历史查询与软保底
+        if (machine.isBookMode()) {
+            List<GachaReward> rewards = drawBookRewards(machine, 10);
+            callback.accept(new TenGachaResult(rewards, pityCount, 0, new HashMap<>()));
+            return;
+        }
+
         // 先查询每个奖品的历史记录，用于计算显示次数
         queryRewardHistories(playerUuid, machine.getId(), machine.getRewards(), histories -> {
             List<GachaReward> rewards = new ArrayList<>();
@@ -396,6 +441,44 @@ public class GachaManager {
             if (rewardDrawCounts == null) return 1;
             return rewardDrawCounts.getOrDefault(String.valueOf(rewardIndex), 1);
         }
+    }
+
+    /**
+     * 为书模式扭蛋机抽取多本附魔书并包装为 GachaReward 列表（复用全部现有动画/结果/发放/记录链路）。
+     * 个别抽取失败（返回 null）会被跳过；调用方应处理「一本都没抽到」的退款场景。
+     */
+    public List<GachaReward> drawBookRewards(GachaMachine machine, int count) {
+        List<GachaReward> rewards = new ArrayList<>();
+        if (!machine.isBookMode() || machine.getEnchantPool() == null) return rewards;
+        AiyatsbusEnchantManager mgr = plugin.getAiyatsbusEnchantManager();
+        // 多尝试几次以尽量避免个别 null 导致数量不足
+        int attempts = 0;
+        while (rewards.size() < count && attempts < count * 3) {
+            attempts++;
+            AiyatsbusEnchantManager.DrawnBook drawn = mgr.drawBook(machine.getEnchantPool());
+            if (drawn == null) continue;
+            rewards.add(wrapBookAsReward(drawn));
+        }
+        return rewards;
+    }
+
+    /**
+     * 把一本抽到的附魔书包装成合成 GachaReward。
+     * id 编码为 "book:<附魔id>:<等级>"，供 logGacha 存库与历史 GUI 重建；
+     * probability 设为该品质档的实际中选率，使现有颜色/百分比/广播逻辑自动生效。
+     */
+    private GachaReward wrapBookAsReward(AiyatsbusEnchantManager.DrawnBook drawn) {
+        String id = "book:" + drawn.enchId + ":" + drawn.level;
+        GachaReward reward = new GachaReward(
+            id,
+            "minecraft:enchanted_book",
+            1,
+            drawn.tierProbability,
+            drawn.displayName,
+            false
+        );
+        reward.setDisplayItem(drawn.book.clone());
+        return reward;
     }
 
     public GachaMachine getMachine(String id) {

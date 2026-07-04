@@ -10,6 +10,7 @@ import dev.user.shop.database.DatabaseQueue;
 import dev.user.shop.economy.EconomyManager;
 import dev.user.shop.economy.ExchangeSessionManager;
 import dev.user.shop.economy.PlayerPointsManager;
+import dev.user.shop.enchant.AiyatsbusEnchantManager;
 import dev.user.shop.shop.PurchaseManager;
 import dev.user.shop.gacha.GachaBlockManager;
 import dev.user.shop.gacha.GachaDisplayManager;
@@ -34,6 +35,7 @@ public class FoliaShopPlugin extends JavaPlugin {
     private DatabaseQueue databaseQueue;
     private EconomyManager economyManager;
     private PlayerPointsManager playerPointsManager;
+    private AiyatsbusEnchantManager aiyatsbusEnchantManager;
     private ExchangeSessionManager exchangeSessionManager;
     private volatile ShopManager shopManager;
     private volatile GachaManager gachaManager;
@@ -90,6 +92,10 @@ public class FoliaShopPlugin extends JavaPlugin {
         // 初始化 PlayerPoints 点数系统（软依赖）
         this.playerPointsManager = new PlayerPointsManager(this);
         playerPointsManager.init();
+
+        // 初始化 Aiyatsbus 更多附魔系统（软依赖，附魔书扭蛋用）
+        this.aiyatsbusEnchantManager = new AiyatsbusEnchantManager(this);
+        aiyatsbusEnchantManager.init();
 
         // 初始化购买事务管理器
         this.purchaseManager = new PurchaseManager(this);
@@ -287,6 +293,10 @@ public class FoliaShopPlugin extends JavaPlugin {
 
     public PlayerPointsManager getPlayerPointsManager() {
         return playerPointsManager;
+    }
+
+    public AiyatsbusEnchantManager getAiyatsbusEnchantManager() {
+        return aiyatsbusEnchantManager;
     }
 
     public PurchaseManager getPurchaseManager() {

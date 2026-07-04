@@ -267,8 +267,8 @@ public class GachaTenResultGUI extends AbstractGUI {
 
                     // 执行10连抽（异步查询历史记录）
                     plugin.getGachaManager().performTenGacha(machine, pityCount, player.getUniqueId(), result -> {
-                        // 打开10连抽动画GUI
-                        new GachaTenAnimationGUI(plugin, player, machine, result).open();
+                        // 打开10连抽动画GUI（含不足 10 本时的退款处理）
+                        GachaTenAnimationGUI.openWithRefund(plugin, player, machine, result, totalCost);
                     });
                 });
             });

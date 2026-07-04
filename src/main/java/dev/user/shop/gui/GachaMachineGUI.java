@@ -3,6 +3,7 @@ package dev.user.shop.gui;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.GachaMachine;
 import dev.user.shop.gacha.GachaManager;
+import dev.user.shop.gacha.GachaReward;
 import dev.user.shop.util.ItemUtil;
 import dev.user.shop.util.MessageUtil;
 import org.bukkit.Material;
@@ -152,6 +153,19 @@ public class GachaMachineGUI extends AbstractGUI {
         double cost = machine.getCost();
 
         executeGachaWithPayment(player, cost, () -> {
+            // 附魔书模式：抽 1 本书（不参与软保底/历史），包装后复用单抽动画 GUI
+            if (machine.isBookMode()) {
+                List<GachaReward> books = plugin.getGachaManager().drawBookRewards(machine, 1);
+                if (books.isEmpty()) {
+                    plugin.getEconomyManager().deposit(player, cost);
+                    player.sendMessage("§c附魔书抽取失败，已退还花费。请检查 Aiyatsbus 插件与附魔池配置。");
+                    return;
+                }
+                GachaMachine.PityResult result = new GachaMachine.PityResult(books.get(0), false);
+                new GachaAnimationGUI(plugin, player, machine, result).open();
+                return;
+            }
+
             // 获取保底计数并抽奖
             plugin.getGachaManager().getPityCount(player.getUniqueId(), machine.getId(), pityCount -> {
                 if (!player.isOnline()) return;
@@ -185,8 +199,8 @@ public class GachaMachineGUI extends AbstractGUI {
                 plugin.getGachaManager().performTenGacha(machine, pityCount, player.getUniqueId(), result -> {
                     if (!player.isOnline()) return;
 
-                    // 打开10连抽动画GUI
-                    new GachaTenAnimationGUI(plugin, player, machine, result).open();
+                    // 打开10连抽动画GUI（含不足 10 本时的退款处理）
+                    GachaTenAnimationGUI.openWithRefund(plugin, player, machine, result, totalCost);
                 });
             });
         });

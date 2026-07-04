@@ -54,6 +54,29 @@ public class GachaTenAnimationGUI extends AbstractGUI {
         this.animationItems = machine.getAnimationItems();
     }
 
+    /**
+     * 十连抽结果的安全入口：处理「抽到的书不足 10 本」的退款，再打开动画 GUI。
+     * （Aiyatsbus 运行时异常/被卸载等极端情况下 drawBook 可能返回 null，导致不足 10 本）
+     * @param totalCost 本次十连扣的总花费，用于计算退款
+     */
+    public static void openWithRefund(FoliaShopPlugin plugin, Player player, GachaMachine machine,
+                                      GachaManager.TenGachaResult result, double totalCost) {
+        int drawn = result.rewards().size();
+        if (drawn < 10) {
+            double refund = (10 - drawn) * machine.getCost();
+            if (refund > 0) {
+                plugin.getEconomyManager().deposit(player, refund);
+            }
+            if (drawn == 0) {
+                player.sendMessage("§c附魔书抽取失败，已退还 " + String.format("%.2f", refund)
+                    + " 花费。请检查 Aiyatsbus 插件与附魔池配置。");
+                return;
+            }
+            player.sendMessage("§e部分附魔书抽取失败，已退还 " + String.format("%.2f", refund) + " 花费。");
+        }
+        new GachaTenAnimationGUI(plugin, player, machine, result).open();
+    }
+
     @Override
     protected void initialize() {
         fillBorder(Material.BLACK_STAINED_GLASS_PANE);
@@ -74,6 +97,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
     }
 
     private ItemStack getRandomAnimationItem() {
+        if (animationItems.isEmpty()) return new ItemStack(Material.BARRIER);
         return animationItems.get(random.nextInt(animationItems.size()));
     }
 
@@ -91,7 +115,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
             }
 
             int tick = animationTick.incrementAndGet();
-            if (tick >= animationDuration || revealedCount >= 10) {
+            if (tick >= animationDuration || revealedCount >= finalRewards.size()) {
                 task.cancel();
                 finishAnimation();
                 return;
@@ -125,7 +149,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
     }
 
     private void updateRollingAnimation() {
-        for (int i = revealedCount; i < 10; i++) {
+        for (int i = revealedCount; i < finalRewards.size(); i++) {
             int slot = DISPLAY_SLOTS[i];
             int remainingTicks = animationDuration - animationTick.get();
             int expectedReveals = 10 - (remainingTicks / (animationDuration / 10));
@@ -166,7 +190,7 @@ public class GachaTenAnimationGUI extends AbstractGUI {
     }
 
     private void finishAnimation() {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < finalRewards.size(); i++) {
             revealFinalReward(i);
         }
 

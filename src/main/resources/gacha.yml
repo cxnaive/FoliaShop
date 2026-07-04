@@ -283,6 +283,57 @@ machines:
           # 设置自定义数据
           - "minecraft:custom_data+{gacha_reward:true,rarity:'legendary',machine:'premium',version:1b}"
 
+  # ========== 附魔书扭蛋机（需安装 Aiyatsbus「更多附魔」插件） ==========
+  # 与普通扭蛋机不同：书模式扭蛋机没有 rewards 列表，抽奖直接产出 Aiyatsbus 附魔书。
+  # 附魔池(enchant-pool)决定从哪些品质抽、品质如何衰减、附魔书等级如何决定。
+  # 未安装 Aiyatsbus 时该扭蛋机会自动禁用并打印警告，不影响其他扭蛋机。
+  # 保底/累抽自选不适用于书模式（它们基于奖品列表）。
+  enchanted_library:
+    name: "<gradient:blue:aqua>附魔图书馆"
+    description:
+      - "<gray>花费 <yellow>500金币 <gray>抽取一本"
+      - "<gradient:blue:aqua>产出 Aiyatsbus 附魔书！"
+      - ""
+      - "<gray>✦ 单抽: 500金币（1本）"
+      - "<gray>✦ 10连抽: 5000金币（10本）"
+    icon: "minecraft:enchanting_table"
+    cost: 500.0
+    animation-duration: 3
+    animation-duration-ten: 8
+    # 稀有度阈值：品质中选概率 <= 此值的档位（如史诗/传奇）会触发全服广播
+    broadcast-rare: true
+    broadcast-threshold: 0.05
+    # 默认关闭；确认已安装 Aiyatsbus 后改为 true 启用
+    enabled: false
+    # ★ 附魔书模式标识（也可省略 mode，仅配 enchant-pool 即视为书模式）
+    mode: ENCHANT_BOOK
+    # ★ 附魔池配置
+    enchant-pool:
+      # 从低到高的品质档（引用 Aiyatsbus 内置品质）
+      # common/uncommon/rare/epic/legendary/splendid/curse/artifact
+      # 不配置则默认 [common, uncommon, rare, epic, legendary]
+      rarities: [common, uncommon, rare, epic, legendary]
+      # 品质衰减：weight[i] = base * ratio^i（i 为档位序号，从最低档起）
+      # ratio<1 时高档越来越稀有；天然适配任意档位数量
+      rarity-decay:
+        base: 100.0
+        ratio: 0.25
+      # 附魔书等级：
+      #   max    恒为该附魔最高等级
+      #   random [min, 最高等级] 均匀随机
+      #   decay  低等级更常见（权重=ratio^(等级-1)），自动适配各附魔不同的最高等级
+      #   fixed  固定为下方 fixed 值
+      level:
+        mode: decay
+        min: 1
+        fixed: 1
+      # 仅从这些 Aiyatsbus 分组里抽（可选，留空=不按分组过滤）
+      # groups:
+      #   - "可交易附魔"
+      # 排除这些附魔 id（可选）
+      # exclude:
+      #   - vanishing_curse
+
 # =============================
 # 收集兑换配置（可选）
 # =============================
