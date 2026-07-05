@@ -205,49 +205,59 @@ public class GlobalShopManager {
      */
     public void cancelListing(Player seller, long listingId, Consumer<Boolean> callback) {
         plugin.getDatabaseQueue().submit("取消上架", conn -> {
-            // 先查询物品数据
-            String selectSql = "SELECT item_data, item_key, item_display_name, amount FROM global_shop_listings WHERE id = ? AND seller_uuid = ?";
-            byte[] itemData = null;
-            String itemKey = null;
-            String displayName = null;
-            int amount = 0;
-            try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                ps.setLong(1, listingId);
-                ps.setString(2, seller.getUniqueId().toString());
-                ResultSet rs = ps.executeQuery();
-                if (!rs.next()) {
-                    return false;
+            try {
+                conn.setAutoCommit(false);
+                // 先查询物品数据
+                String selectSql = "SELECT item_data, item_key, item_display_name, amount FROM global_shop_listings WHERE id = ? AND seller_uuid = ?";
+                byte[] itemData = null;
+                String itemKey = null;
+                String displayName = null;
+                int amount = 0;
+                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                    ps.setLong(1, listingId);
+                    ps.setString(2, seller.getUniqueId().toString());
+                    ResultSet rs = ps.executeQuery();
+                    if (!rs.next()) {
+                        conn.commit();
+                        return false;
+                    }
+                    itemData = rs.getBytes("item_data");
+                    itemKey = rs.getString("item_key");
+                    displayName = rs.getString("item_display_name");
+                    amount = rs.getInt("amount");
                 }
-                itemData = rs.getBytes("item_data");
-                itemKey = rs.getString("item_key");
-                displayName = rs.getString("item_display_name");
-                amount = rs.getInt("amount");
-            }
 
-            // 条件更新（防重复取消）
-            String updateSql = "UPDATE global_shop_listings SET status = 'CANCELLED' WHERE id = ? AND status = 'ACTIVE' AND seller_uuid = ?";
-            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                ps.setLong(1, listingId);
-                ps.setString(2, seller.getUniqueId().toString());
-                if (ps.executeUpdate() == 0) {
-                    return false;
+                // 条件更新（防重复取消）
+                String updateSql = "UPDATE global_shop_listings SET status = 'CANCELLED' WHERE id = ? AND status = 'ACTIVE' AND seller_uuid = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setLong(1, listingId);
+                    ps.setString(2, seller.getUniqueId().toString());
+                    if (ps.executeUpdate() == 0) {
+                        conn.commit();
+                        return false;
+                    }
                 }
-            }
 
-            // 创建退回条目
-            String insertReturnSql = "INSERT INTO global_shop_returns (owner_uuid, listing_id, item_data, item_key, item_display_name, amount, reason, created_at, claimed) VALUES (?, ?, ?, ?, ?, ?, 'CANCELLED', ?, FALSE)";
-            try (PreparedStatement ps = conn.prepareStatement(insertReturnSql)) {
-                ps.setString(1, seller.getUniqueId().toString());
-                ps.setLong(2, listingId);
-                ps.setBytes(3, itemData);
-                ps.setString(4, itemKey);
-                ps.setString(5, displayName);
-                ps.setInt(6, amount);
-                ps.setLong(7, System.currentTimeMillis());
-                ps.executeUpdate();
-            }
+                // 创建退回条目（与 UPDATE 同事务：任一步失败整体回滚，避免 listing 已 CANCELLED 但无退回条目导致丢物）
+                String insertReturnSql = "INSERT INTO global_shop_returns (owner_uuid, listing_id, item_data, item_key, item_display_name, amount, reason, created_at, claimed) VALUES (?, ?, ?, ?, ?, ?, 'CANCELLED', ?, FALSE)";
+                try (PreparedStatement ps = conn.prepareStatement(insertReturnSql)) {
+                    ps.setString(1, seller.getUniqueId().toString());
+                    ps.setLong(2, listingId);
+                    ps.setBytes(3, itemData);
+                    ps.setString(4, itemKey);
+                    ps.setString(5, displayName);
+                    ps.setInt(6, amount);
+                    ps.setLong(7, System.currentTimeMillis());
+                    ps.executeUpdate();
+                }
 
-            return true;
+                conn.commit();
+                return true;
+            } catch (Exception e) {
+                try { conn.rollback(); } catch (Exception ignored) {}
+                plugin.getLogger().severe("取消上架事务异常: " + e.getMessage());
+                return false;
+            }
         }, result -> {
             if (result != null && result) {
                 seller.sendMessage("§a已取消上架，物品已进入待领取列表");
@@ -398,6 +408,10 @@ public class GlobalShopManager {
                 }
                 plugin.getLogger().warning("[全球商店] 物品退回背包部分满，" + leftoverCount + "/" + amount + " 存入待领取: " + player.getName());
             }
+        } else {
+            // 反序列化失败：保留原始数据存入待领取（防丢）
+            createReturnEntryForOffline(player.getUniqueId(), itemData, null, null, amount);
+            plugin.getLogger().warning("[全球商店] 物品退回反序列化失败，已存入待领取: " + player.getName());
         }
     }
 

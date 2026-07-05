@@ -44,11 +44,27 @@ public class GlobalShopChatListener implements Listener {
             // 退回物品
             if (session.markConsumed()) {
                 plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
-                    if (!player.isOnline()) return;
+                    if (!player.isOnline()) {
+                        // 玩家离线：物品存入待领取（防丢）
+                        plugin.getGlobalShopManager().createReturnEntryForOffline(
+                                player.getUniqueId(), session.getItemData(), null, null, session.getAmount());
+                        return;
+                    }
                     org.bukkit.inventory.ItemStack item = dev.user.shop.util.ItemDataUtil.deserializeItem(session.getItemData());
-                    if (item != null) {
-                        item.setAmount(session.getAmount());
-                        player.getInventory().addItem(item);
+                    if (item == null) {
+                        plugin.getGlobalShopManager().createReturnEntryForOffline(
+                                player.getUniqueId(), session.getItemData(), null, null, session.getAmount());
+                        player.sendMessage("§c已取消上架，物品数据异常已存入待领取");
+                        return;
+                    }
+                    item.setAmount(session.getAmount());
+                    java.util.Collection<org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item).values();
+                    if (!leftover.isEmpty()) {
+                        int leftoverCount = leftover.stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
+                        if (leftoverCount > 0) {
+                            plugin.getGlobalShopManager().createReturnEntryForOffline(
+                                    player.getUniqueId(), session.getItemData(), null, null, leftoverCount);
+                        }
                     }
                     player.sendMessage("§c已取消上架，物品已退回");
                 });
@@ -114,20 +130,9 @@ public class GlobalShopChatListener implements Listener {
             sessionManager.removeSession(event.getPlayer().getUniqueId());
             // 原子标记并退回物品，防止超时处理器重复处理
             if (session.markConsumed()) {
-                org.bukkit.entity.Player player = event.getPlayer();
-                org.bukkit.inventory.ItemStack item = dev.user.shop.util.ItemDataUtil.deserializeItem(session.getItemData());
-                if (item != null) {
-                    item.setAmount(session.getAmount());
-                    java.util.Collection<org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item).values();
-                    if (!leftover.isEmpty()) {
-                        int leftoverCount = leftover.stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
-                        if (leftoverCount > 0) {
-                            plugin.getGlobalShopManager().createReturnEntryForOffline(
-                                    player.getUniqueId(), session.getItemData(), null, null, leftoverCount);
-                        }
-                        plugin.getLogger().warning("[全球商店] 玩家退出退回物品背包部分满，" + leftoverCount + "/" + session.getAmount() + " 存入待领取: " + player.getName());
-                    }
-                }
+                // 玩家退出时背包操作不可靠，一律存入待领取（防丢）
+                plugin.getGlobalShopManager().createReturnEntryForOffline(
+                        event.getPlayer().getUniqueId(), session.getItemData(), null, null, session.getAmount());
             }
         }
     }

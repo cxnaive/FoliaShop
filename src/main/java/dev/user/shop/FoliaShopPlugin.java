@@ -128,6 +128,9 @@ public class FoliaShopPlugin extends JavaPlugin {
             // 初始化扭蛋机展示实体管理器
             this.gachaDisplayManager = new GachaDisplayManager(this);
             this.gachaDisplayManager.loadAllDisplays();
+            // unload+load 后残留实体无动画任务驱动（Folia 在 plugin disable 时取消所有绑定任务），
+            // 主动重建已加载区块的展示实体以恢复动画；未加载区块由 onChunkLoad 重建
+            this.gachaDisplayManager.rebuildLoadedDisplays();
 
             getLogger().info("商店和扭蛋系统已加载完成！");
         }, 2L);

@@ -36,6 +36,10 @@ public class DatabaseQueue {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
+                } catch (Exception e) {
+                    // 吞并单个任务的非中断异常，避免打死整个 DB 队列线程（单点故障会让全插件持久化停摆）
+                    plugin.getLogger().severe("数据库队列任务异常（已吞并，队列继续运行）: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         });

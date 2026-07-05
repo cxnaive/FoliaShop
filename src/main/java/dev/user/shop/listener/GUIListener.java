@@ -322,6 +322,7 @@ public class GUIListener implements Listener {
             ItemStack item = submitGUI.getInventory().getItem(slot);
             if (item != null && item.getType().isItem()) {
                 itemsToReturn.add(item);
+                submitGUI.getInventory().setItem(slot, null);  // 立即清空，防止二次 close 重复收集导致双倍退回
             }
         }
 

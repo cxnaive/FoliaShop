@@ -104,17 +104,23 @@ public class GlobalShopManageGUI extends AbstractGUI {
         // 上一页
         if (page > 0) {
             var decoration = plugin.getShopConfig().getGUIDecoration("prev-page");
-            ItemStack prevBtn = ItemUtil.createItemFromKey(plugin, decoration.getMaterial());
-            ItemUtil.setDisplayName(prevBtn, MessageUtil.convertMiniMessageToLegacy(decoration.getName()));
-            setItem(47, prevBtn, p -> new GlobalShopManageGUI(plugin, p, page - 1).open());
+            ItemStack prevBtn = ItemUtil.createItemFromKey(plugin,
+                    decoration != null ? decoration.getMaterial() : "minecraft:arrow");
+            if (prevBtn != null) {
+                ItemUtil.setDisplayName(prevBtn, decoration != null ? MessageUtil.convertMiniMessageToLegacy(decoration.getName()) : "§e上一页");
+                setItem(47, prevBtn, p -> new GlobalShopManageGUI(plugin, p, page - 1).open());
+            }
         }
 
         // 下一页
         if (loadedCount >= ITEMS_PER_PAGE) {
             var decoration = plugin.getShopConfig().getGUIDecoration("next-page");
-            ItemStack nextBtn = ItemUtil.createItemFromKey(plugin, decoration.getMaterial());
-            ItemUtil.setDisplayName(nextBtn, MessageUtil.convertMiniMessageToLegacy(decoration.getName()));
-            setItem(53, nextBtn, p -> new GlobalShopManageGUI(plugin, p, page + 1).open());
+            ItemStack nextBtn = ItemUtil.createItemFromKey(plugin,
+                    decoration != null ? decoration.getMaterial() : "minecraft:arrow");
+            if (nextBtn != null) {
+                ItemUtil.setDisplayName(nextBtn, decoration != null ? MessageUtil.convertMiniMessageToLegacy(decoration.getName()) : "§e下一页");
+                setItem(53, nextBtn, p -> new GlobalShopManageGUI(plugin, p, page + 1).open());
+            }
         }
 
         // 关闭按钮

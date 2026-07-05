@@ -173,46 +173,26 @@ public class GlobalShopPurchaseManager {
                 ps.executeUpdate();
             }
 
-            // 8. 提交事务（先确保 DB 操作全部成功，再扣款）
-            conn.commit();
-
-            // 9. 扣除买家金钱（commit 后执行，避免 commit 失败时买家丢钱）
+            // 8. 扣除买家金钱（在 commit 之前：扣款失败则整事务 rollback，
+            //    listing 回到 ACTIVE、卖家收益与交易记录从未提交，不存在时间窗口，
+            //    卖家不可能领到收益 → 杜绝「扣款失败异步回滚 vs 卖家领取」的刷钱竞态）
             boolean withdrawn = xconomyAPI.changePlayerBalance(buyer.getUniqueId(), buyer.getName(), BigDecimal.valueOf(-price), false) == 0;
             if (!withdrawn) {
-                // 极端情况：DB 已标记 SOLD 但扣款失败。记录日志供管理员排查。
-                plugin.getLogger().warning("[全球商店] 购买扣款失败但已 commit! buyer=" + task.buyerName + " listing=" + listingId + " price=" + price);
-                // 尝试原子回滚：恢复上架状态、删除收益和交易记录
-                plugin.getDatabaseQueue().submit("回滚扣款失败购买", rollbackConn -> {
-                    rollbackConn.setAutoCommit(false);
-                    try {
-                        String rollbackSql = "UPDATE global_shop_listings SET status = 'ACTIVE' WHERE id = ? AND status = 'SOLD'";
-                        try (PreparedStatement ps = rollbackConn.prepareStatement(rollbackSql)) {
-                            ps.setLong(1, listingId);
-                            if (ps.executeUpdate() > 0) {
-                                try (PreparedStatement delReturns = rollbackConn.prepareStatement(
-                                        "DELETE FROM global_shop_returns WHERE listing_id = ?")) {
-                                    delReturns.setLong(1, listingId);
-                                    delReturns.executeUpdate();
-                                }
-                                try (PreparedStatement delTx = rollbackConn.prepareStatement(
-                                        "DELETE FROM global_shop_transactions WHERE listing_id = ?")) {
-                                    delTx.setLong(1, listingId);
-                                    delTx.executeUpdate();
-                                }
-                            }
-                        }
-                        rollbackConn.commit();
-                    } catch (Exception e) {
-                        rollbackConn.rollback();
-                        throw e;
-                    }
-                    return null;
-                }, r -> {}, e -> plugin.getLogger().severe("回滚扣款失败购买异常: " + e.getMessage()));
+                conn.rollback();
                 sendResult(task, GlobalShopPurchaseResult.fail("§c扣款失败，请稍后再试"));
                 return;
             }
 
-            // 10. 给予买家物品（扣款成功后）
+            // 9. 提交事务（扣款已成功）。commit 极少失败；若失败则给买家退款补偿，避免丢钱。
+            try {
+                conn.commit();
+            } catch (Exception commitEx) {
+                plugin.getLogger().severe("[全球商店] 购买 commit 失败，已退款补偿! buyer=" + task.buyerName + " listing=" + listingId + " price=" + price + " err=" + commitEx.getMessage());
+                xconomyAPI.changePlayerBalance(buyer.getUniqueId(), buyer.getName(), BigDecimal.valueOf(price), false);
+                throw commitEx;
+            }
+
+            // 10. 给予买家物品（扣款成功、事务提交后）
             byte[] finalItemData = itemData;
             int finalAmount = amount;
             String finalItemKey = itemKey;

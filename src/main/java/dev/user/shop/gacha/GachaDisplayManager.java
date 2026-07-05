@@ -294,6 +294,73 @@ public class GachaDisplayManager {
     }
 
     /**
+     * 主动重建所有「已加载区块」内的展示实体。
+     * <p>
+     * 用于插件 unload+load 后的恢复：unload 时 Folia 取消了全部动画任务（EntityScheduler 任务绑定 plugin），
+     * 而 onDisable 未移除实体，导致残留 ItemDisplay 无任务驱动而「停滞」（不旋转/不浮动/无粒子）。
+     * 此方法遍历已加载区块的绑定，删除残留旧实体并用新动画任务重建。
+     * 未加载区块的绑定由 {@link #onChunkLoad} 在区块加载时重建。
+     */
+    public void rebuildLoadedDisplays() {
+        if (!plugin.getShopConfig().isDisplayEntityEnabled()) {
+            return;
+        }
+        plugin.getGachaBlockManager().getAllBindings(bindings -> {
+            int rebuilt = 0;
+            for (GachaBlockBinding binding : bindings) {
+                World world = Bukkit.getWorld(binding.getWorldUuid());
+                if (world == null) continue;
+                int chunkX = binding.getPosition().getBlockX() >> 4;
+                int chunkZ = binding.getPosition().getBlockZ() >> 4;
+                // 只重建已加载区块（未加载的留给 onChunkLoad）
+                if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
+
+                GachaMachine machine = plugin.getGachaManager().getMachine(binding.getMachineId());
+                if (machine == null) continue;
+
+                final GachaBlockBinding fBinding = binding;
+                final GachaMachine fMachine = machine;
+                final BlockPos blockPos = new BlockPos(
+                        binding.getPosition().getBlockX(),
+                        binding.getPosition().getBlockY(),
+                        binding.getPosition().getBlockZ()
+                );
+                final DisplayEntityConfig effectiveConfig = getEffectiveConfig(machine);
+                float heightOffset = effectiveConfig.getHeightOffset();
+                final Location location = new Location(
+                        world,
+                        binding.getPosition().getBlockX() + 0.5,
+                        binding.getPosition().getBlockY() + heightOffset,
+                        binding.getPosition().getBlockZ() + 0.5
+                );
+                plugin.getServer().getRegionScheduler().execute(plugin, location, () -> {
+                    // 删除 unload 时残留的旧实体（用绑定记录的 uuid）
+                    UUID oldUuid = fBinding.getDisplayEntityUuid();
+                    if (oldUuid != null) {
+                        Entity oldEntity = Bukkit.getEntity(oldUuid);
+                        if (oldEntity != null && oldEntity.getType() == EntityType.ITEM_DISPLAY) {
+                            oldEntity.remove();
+                        }
+                    }
+                    // 清理内存中该位置的旧记录
+                    Map<BlockPos, UUID> worldDisplays = displayEntities.get(fBinding.getWorldUuid());
+                    if (worldDisplays != null) {
+                        worldDisplays.remove(blockPos);
+                    }
+                    // 根据当前配置重建（启用则建新实体+新动画；禁用则保持移除）
+                    if (effectiveConfig.isEnabled()) {
+                        createDisplayInternal(fBinding, fMachine, location);
+                    }
+                });
+                rebuilt++;
+            }
+            if (rebuilt > 0) {
+                plugin.getLogger().info("[onEnable] 重建 " + rebuilt + " 个已加载区块的展示实体（恢复 unload 后停滞的动画）");
+            }
+        });
+    }
+
+    /**
      * 重新加载展示实体（reload 时调用）
      * 设置所有绑定的 outdated 标志，由各个实体的检测任务自行重建
      */

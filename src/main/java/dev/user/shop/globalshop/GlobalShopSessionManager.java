@@ -46,26 +46,40 @@ public class GlobalShopSessionManager {
         if (!session.markConsumed()) return;
 
         Player player = Bukkit.getPlayer(session.getPlayerUuid());
-        if (player != null && player.isOnline()) {
-            plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
-                if (!player.isOnline()) return;
-                // 退回物品到玩家背包
-                org.bukkit.inventory.ItemStack item = dev.user.shop.util.ItemDataUtil.deserializeItem(session.getItemData());
-                if (item != null) {
-                    item.setAmount(session.getAmount());
-                    java.util.Collection<org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item).values();
-                    if (!leftover.isEmpty()) {
-                        int leftoverCount = leftover.stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
-                        if (leftoverCount > 0) {
-                            plugin.getGlobalShopManager().createReturnEntryForOffline(
-                                    player.getUniqueId(), session.getItemData(), null, null, leftoverCount);
-                        }
-                        plugin.getLogger().warning("[全球商店] 会话超时退回物品背包部分满，" + leftoverCount + "/" + session.getAmount() + " 存入待领取: " + player.getName());
-                    }
-                }
-                player.sendMessage("§c上架操作超时，物品已退回到你的背包");
-            });
+        if (player == null || !player.isOnline()) {
+            // 玩家离线：物品直接存入待领取（防丢）
+            plugin.getGlobalShopManager().createReturnEntryForOffline(
+                    session.getPlayerUuid(), session.getItemData(), null, null, session.getAmount());
+            return;
         }
+        plugin.getServer().getGlobalRegionScheduler().execute(plugin, () -> {
+            if (!player.isOnline()) {
+                // 调度执行期间玩家已下线：物品存入待领取（防丢）
+                plugin.getGlobalShopManager().createReturnEntryForOffline(
+                        session.getPlayerUuid(), session.getItemData(), null, null, session.getAmount());
+                return;
+            }
+            // 退回物品到玩家背包
+            org.bukkit.inventory.ItemStack item = dev.user.shop.util.ItemDataUtil.deserializeItem(session.getItemData());
+            if (item == null) {
+                // 反序列化失败：保留原始数据存入待领取（防丢）
+                plugin.getGlobalShopManager().createReturnEntryForOffline(
+                        session.getPlayerUuid(), session.getItemData(), null, null, session.getAmount());
+                plugin.getLogger().warning("[全球商店] 会话超时退回物品反序列化失败，已存入待领取: " + session.getPlayerUuid());
+                return;
+            }
+            item.setAmount(session.getAmount());
+            java.util.Collection<org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item).values();
+            if (!leftover.isEmpty()) {
+                int leftoverCount = leftover.stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
+                if (leftoverCount > 0) {
+                    plugin.getGlobalShopManager().createReturnEntryForOffline(
+                            player.getUniqueId(), session.getItemData(), null, null, leftoverCount);
+                }
+                plugin.getLogger().warning("[全球商店] 会话超时退回物品背包部分满，" + leftoverCount + "/" + session.getAmount() + " 存入待领取: " + player.getName());
+            }
+            player.sendMessage("§c上架操作超时，物品已退回到你的背包");
+        });
     }
 
     public void startSession(Player player, byte[] itemData, String itemKey,

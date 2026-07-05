@@ -96,31 +96,55 @@ public class GlobalShopReturnManager {
                         return;
                     }
 
-                    boolean itemGiven = true;
                     if (data.itemData != null) {
                         org.bukkit.inventory.ItemStack item = dev.user.shop.util.ItemDataUtil.deserializeItem(data.itemData);
-                        if (item != null) {
-                            item.setAmount(data.amount);
-                            if (!hasSpace(player, item)) {
-                                rollbackClaim(returnId);
-                                player.sendMessage("§c背包空间不足，请清理背包后再领取");
-                                callback.accept(new ClaimOutcome(false, 0));
-                                return;
+                        if (item == null) {
+                            // 反序列化失败：回滚 claimed，保留条目供玩家重试/管理员排查（不吞物品）
+                            rollbackClaim(returnId);
+                            player.sendMessage("§c物品数据异常，领取已回滚，请联系管理员");
+                            callback.accept(new ClaimOutcome(false, 0));
+                            return;
+                        }
+                        item.setAmount(data.amount);
+                        if (!hasSpace(player, item)) {
+                            rollbackClaim(returnId);
+                            player.sendMessage("§c背包空间不足，请清理背包后再领取");
+                            callback.accept(new ClaimOutcome(false, 0));
+                            return;
+                        }
+                        java.util.Map<Integer, org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item);
+                        if (!leftover.isEmpty()) {
+                            int leftoverCount = leftover.values().stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
+                            if (leftoverCount > 0) {
+                                // 背包空间计算与实际不符时，剩余物品重新存入待领取（防丢）
+                                plugin.getGlobalShopManager().createReturnEntryForOffline(
+                                        player.getUniqueId(), data.itemData, null, null, leftoverCount);
+                                player.sendMessage("§e背包空间不足，" + leftoverCount + " 个物品已存入待领取列表");
                             }
-                            player.getInventory().addItem(item);
-                        } else {
-                            itemGiven = false;
                         }
                     }
 
-                    // 给予收益
-                    double claimedEarnings = 0;
-                    if (data.earnings > 0 && player.isOnline()) {
-                        plugin.getEconomyManager().depositAsync(player, data.earnings, success -> {});
-                        claimedEarnings = data.earnings;
+                    // 给予收益（检查 success，失败回滚 claimed 保留条目供重试，不静默吞钱）
+                    if (data.earnings > 0) {
+                        final double earnings = data.earnings;
+                        plugin.getEconomyManager().depositAsync(player, earnings, success -> {
+                            if (success) {
+                                callback.accept(new ClaimOutcome(true, earnings));
+                            } else if (data.itemData == null) {
+                                // 纯收益条目（无物品发出）：安全回滚 claimed，收益保留可重试
+                                rollbackClaim(returnId);
+                                player.sendMessage("§c收益到账失败，请稍后重试");
+                                callback.accept(new ClaimOutcome(false, 0));
+                            } else {
+                                // 异常脏数据（物品已发出却带收益）：不能 rollback（否则物品可再领=复制），仅告警
+                                plugin.getLogger().warning("[全球商店] 领取条目 " + returnId + " 物品已发但收益存款失败，收益未发放: " + earnings);
+                                callback.accept(new ClaimOutcome(true, 0));
+                            }
+                        });
+                        return;
                     }
 
-                    callback.accept(new ClaimOutcome(true, claimedEarnings));
+                    callback.accept(new ClaimOutcome(true, 0));
                 });
             } else {
                 callback.accept(new ClaimOutcome(false, 0));
