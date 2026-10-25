@@ -1,0 +1,73 @@
+# 绯樱套装转入点券商城，金币价和系统回收价均为 0。
+categories:
+  points:
+    subcategories:
+      pink_suite:
+        name: "绯樱武装系列"
+        icon: "pink_pack:wings"
+        slot: 16
+items:
+  pink_pack_sword:
+    item: "pink_pack:sword"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 10
+  pink_pack_scythe:
+    item: "pink_pack:scythe"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 11
+  pink_pack_hammer:
+    item: "pink_pack:hammer"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 12
+  pink_pack_axe:
+    item: "pink_pack:axe"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 13
+  pink_pack_hoe:
+    item: "pink_pack:hoe"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 14
+  pink_pack_pickaxe:
+    item: "pink_pack:pickaxe"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 15
+  pink_pack_shovel:
+    item: "pink_pack:shovel"
+    buy-price: 0.0
+    buy-points: 3500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 16
+  pink_pack_wings:
+    item: "pink_pack:wings"
+    buy-price: 0.0
+    buy-points: 4500
+    sell-price: 0.0
+    stock: -1
+    category: "points:pink_suite"
+    slot: 19

@@ -215,11 +215,10 @@ public class ShopItemsGUI extends AbstractGUI {
 
     /**
      * 处理物品点击 - 由GUIListener调用，保存了点击事件信息
-     * 左键购买1个，Shift+左键购买64个，右键和Shift+右键不处理
+     * 左键购买1个，Shift+左键购买64个，其他点击不处理
      */
     public void handleItemClick(Player player, ShopItem shopItem, ClickType clickType) {
-        // 右键和Shift+右键不处理
-        if (clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT) {
+        if (clickType != ClickType.LEFT && clickType != ClickType.SHIFT_LEFT) {
             return;
         }
 

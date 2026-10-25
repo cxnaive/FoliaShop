@@ -1,0 +1,227 @@
+
+machines:
+  pinksuite:
+    name: "<light_purple>绯樱套装扭蛋机"
+    description:
+      - "<gray>花费 <yellow>300金币 <gray>抽取一次"
+      - "<light_purple>有机会获得全套绯樱装备(集齐后会发生什么呢~)！"
+      - "<light_purple>有机会获得全套玩偶！"
+      - ""
+      - "<light_purple>✦ 单抽: 300金币"
+      - "<light_purple>✦ 10连抽: 3000金币"
+      - "<light_purple>✦ 保底: 100抽"
+      - "<light_purple>✦ 综合概率: 1.45%"
+    icon: "pink_pack:scythe"
+    icon-components:
+      - "minecraft:enchantment_glint_override+true"
+    cost: 300.0
+    animation-duration: 4
+    animation-duration-ten: 9
+    broadcast-rare: true
+    broadcast-threshold: 0.001
+    enabled: true
+
+    display-entity:
+      enabled: true       # 是否启用展示实体（默认 true）
+      scale: 0.5
+      face-player: false
+      floating-animation: true
+      float-amplitude: 0.15
+      float-speed: 1.0
+      height-offset: 1.5
+      glowing: false
+      # glow-color: "#FFD700"  # 金色发光
+      particle-effect:
+        type: STAR_RING
+        density: 3
+        radius: 1.2
+        speed: 0.3
+
+    # 保底规则
+    pity:
+      enabled: true
+      start: 68
+      max: 100
+      target-max-probability: 0.0008
+
+    milepost-pick:
+      interval: 300
+      max-picks: 3
+
+    rewards:
+      - id: redstone_block_16
+        item: minecraft:redstone_block
+        amount: 16
+        probability: 0.133
+        display-name: "<red>红石块 x16"
+      # ===== 传说奖品：绯樱套装 (7个，总和2.7%) =====
+      - id: pink_pack_sword
+        item: pink_pack:sword
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_scythe
+        item: pink_pack:scythe
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_hammer
+        item: pink_pack:hammer
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_axe
+        item: pink_pack:axe
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_hoe
+        item: pink_pack:hoe
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_pickaxe
+        item: pink_pack:pickaxe
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      - id: pink_pack_shovel
+        item: pink_pack:shovel
+        amount: 1
+        probability: 0.0008
+        broadcast: true
+
+      # ===== 史诗奖品：毛绒玩具 (10个，总和4%) =====
+      - id: plushie_big_eared_rapscallion
+        item: nogs_menagerie:nm_plushie_big_eared_rapscallion
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_small_white_cat
+        item: nogs_menagerie:nm_plushie_small_white_cat
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_floppy_eared_dog
+        item: nogs_menagerie:nm_plushie_floppy_eared_dog
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_black_scowling_penguin
+        item: nogs_menagerie:nm_plushie_black_scowling_penguin
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_couscous
+        item: nogs_menagerie:nm_plushie_couscous
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_darnell
+        item: nogs_menagerie:nm_plushie_darnell
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_silly_little_penguin
+        item: nogs_menagerie:nm_plushie_silly_little_penguin
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_eindhoven_frog
+        item: nogs_menagerie:nm_plushie_eindhoven_frog
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_pink_hat_rabbit
+        item: nogs_menagerie:nm_plushie_pink_hat_rabbit
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      - id: plushie_spikey_eared_rascal
+        item: nogs_menagerie:nm_plushie_spikey_eared_rascal
+        amount: 1
+        probability: 0.005
+        broadcast: false
+
+      # ===== 精良奖品 =====
+      - id: nether_star
+        item: minecraft:nether_star
+        amount: 1
+        probability: 0.0324
+        display-name: "<light_purple>下界之星"
+
+      - id: heart_of_the_sea
+        item: minecraft:heart_of_the_sea
+        amount: 1
+        probability: 0.04
+        display-name: "<blue>海洋之心"
+
+      - id: enchanted_golden_apple_4
+        item: minecraft:enchanted_golden_apple
+        amount: 1
+        probability: 0.049
+        display-name: "<light_purple>附魔金苹果 x1"
+
+      - id: enchanted_golden_apple_1
+        item: minecraft:enchanted_golden_apple
+        amount: 1
+        probability: 0.06
+        display-name: "<light_purple>附魔金苹果 x1"
+
+      - id: netherite_ingot_2
+        item: minecraft:netherite_scrap
+        amount: 1
+        probability: 0.06
+        display-name: "<dark_gray>下界合金碎片 x1"
+
+      - id: diamond_8
+        item: minecraft:diamond
+        amount: 4
+        probability: 0.06
+        display-name: "<blue>钻石 x4"
+
+      # ===== 普通奖品 =====
+      - id: golden_apple
+        item: minecraft:golden_apple
+        amount: 8
+        probability: 0.07
+        display-name: "<gold>金苹果 x8"
+
+      - id: netherite_ingot_1
+        item: minecraft:netherite_scrap
+        amount: 1
+        probability: 0.07
+        display-name: "<dark_gray>下界合金碎片"
+
+      - id: diamond_8
+        item: minecraft:diamond
+        amount: 2
+        probability: 0.10
+        display-name: "<blue>钻石 x2"
+
+      - id: emerald_block_8
+        item: minecraft:emerald_block
+        amount: 8
+        probability: 0.12
+        display-name: "<green>绿宝石块 x8"
+
+      - id: lapis_block_16
+        item: minecraft:lapis_block
+        amount: 16
+        probability: 0.15
+        display-name: "<dark_blue>青金石块 x16"

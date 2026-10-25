@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.user"
-version = "1.3.1"
+version = "1.4.0"
 
 repositories {
     mavenCentral()
@@ -18,17 +18,17 @@ repositories {
 }
 
 dependencies {
-    compileOnly("dev.folia:folia-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("dev.folia:folia-api:26.2.build.7-beta")
 
     // XConomy 经济插件
     compileOnly("com.github.YiC200333:XConomyAPI:2.25.1")
 
     // CraftEngine
-    compileOnly("net.momirealms:craft-engine-bukkit:0.0.67")
-    compileOnly("net.momirealms:craft-engine-core:0.0.67")
+    compileOnly("net.momirealms:craft-engine-core:26.7")
+    compileOnly("net.momirealms:craft-engine-bukkit:26.7")
 
     // NBT API
-    compileOnly("de.tr7zw:item-nbt-api-plugin:2.15.5")
+    compileOnly("de.tr7zw:item-nbt-api-plugin:2.16.1")
 
     // PlayerPoints
     compileOnly("org.black_ixx:playerpoints:3.3.3")
@@ -50,12 +50,24 @@ dependencies {
 
     // LZ4 压缩 (由服务器通过 plugin.yml libraries 加载)
     compileOnly("org.lz4:lz4-java:1.8.0")
+
+    testImplementation("dev.folia:folia-api:26.2.build.7-beta")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testImplementation("org.mockito:mockito-core:5.18.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
 }
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
+    options.release.set(25)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // 将 project.version 注入 plugin.yml 的 ${version} 占位符

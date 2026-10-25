@@ -37,7 +37,8 @@ public class GUIListener implements Listener {
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
 
-        InventoryHolder holder = event.getInventory().getHolder();
+        Inventory topInventory = event.getInventory();
+        InventoryHolder holder = topInventory.getHolder();
         if (!(holder instanceof AbstractGUI gui)) {
             return;
         }
@@ -60,24 +61,24 @@ public class GUIListener implements Listener {
             return;
         }
 
+        // 只有顶部 GUI 的槽位才绑定按钮；底部背包的局部 slot 编号会与顶部重复。
+        event.setCancelled(true);
+        if (clickedInventory != topInventory) return;
+        int slot = event.getRawSlot();
+
         // 处理商店物品界面的点击（需要传递点击类型）
         if (gui instanceof ShopItemsGUI shopItemsGUI) {
-            event.setCancelled(true);
-
             // 先检查是否是按钮点击（返回/关闭等），如果不是则处理物品点击
-            if (gui.hasAction(event.getSlot())) {
-                gui.handleClick(event.getSlot(), player);
+            if (gui.hasAction(slot)) {
+                gui.handleClick(slot, player);
             } else {
-                shopItemsGUI.handleItemClick(player, event.getSlot(), event.getClick());
+                shopItemsGUI.handleItemClick(player, slot, event.getClick());
             }
             return;
         }
 
-        // 普通GUI：取消所有点击
-        event.setCancelled(true);
-
         // 处理普通GUI点击
-        gui.handleClick(event.getSlot(), player);
+        gui.handleClick(slot, player);
     }
 
     private void handleSellGUIClick(InventoryClickEvent event, Player player, SellGUI sellGUI) {

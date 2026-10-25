@@ -1,0 +1,42 @@
+# 预备收集任务。FoliaShop 只加载 gacha_*.yml，此文件当前不会加载。
+# 日后先将 gacha_easterbunny.yml 中对应机器设为 enabled: true，
+# 再将本文件改名为 gacha_easterbunny_collections.yml 并重载插件。
+collections:
+  easterbunny_knight:
+    name: "<light_purple>彩蛋兔兔·骑士收集"
+    description:
+      - "<gray>集齐四件骑士盔甲，获得彩蛋兔兔背包"
+      - "<gray>背包需要放在副手展示"
+    icon: "easterbunny_v4:backpack"
+    slot: 12
+    requires:
+      - "easterbunny_knight:helmet"
+      - "easterbunny_knight:chestplate"
+      - "easterbunny_knight:leggings"
+      - "easterbunny_knight:boots"
+    reward:
+      item: "easterbunny_v4:backpack"
+      amount: 1
+      give-item: true
+    repeatable: true
+
+  easterbunny_adventure:
+    name: "<light_purple>彩蛋兔兔·冒险收集"
+    description:
+      - "<gray>集齐八件冒险装备，获得兔耳小礼帽"
+    icon: "easterbunny_v4:hat"
+    slot: 13
+    requires:
+      - "easterbunny_adventure:bow"
+      - "easterbunny_adventure:crossbow"
+      - "easterbunny_adventure:fishing_rod"
+      - "easterbunny_adventure:shield"
+      - "easterbunny_adventure:dagger"
+      - "easterbunny_adventure:mace"
+      - "easterbunny_adventure:spear"
+      - "easterbunny_adventure:staff"
+    reward:
+      item: "easterbunny_v4:hat"
+      amount: 1
+      give-item: true
+    repeatable: true

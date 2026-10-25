@@ -5,7 +5,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
-import net.momirealms.craftengine.core.item.CustomItem;
+import net.momirealms.craftengine.bukkit.item.BukkitItemDefinition;
 import net.momirealms.craftengine.core.item.ItemBuildContext;
 import net.momirealms.craftengine.core.util.Key;
 import org.bukkit.Material;
@@ -63,9 +63,9 @@ public class ItemUtil {
     private static ItemStack getCEItem(FoliaShopPlugin plugin, String namespace, String id) {
         try {
             Key itemKey = Key.of(namespace, id);
-            CustomItem<ItemStack> customItem = CraftEngineItems.byId(itemKey);
-            if (customItem != null) {
-                return customItem.buildItemStack(ItemBuildContext.empty(), 1);
+            BukkitItemDefinition definition = CraftEngineItems.byId(itemKey);
+            if (definition != null) {
+                return definition.buildBukkitItem(ItemBuildContext.empty(), 1);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("[CE] 获取CE物品失败 " + namespace + ":" + id + ": " + e.getMessage());

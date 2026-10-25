@@ -1,0 +1,79 @@
+# =============================
+# FoliaShop - 扭蛋配置
+# =============================
+# 此文件包含扭蛋系统的所有配置
+# 可以覆盖 config.yml 中的扭蛋设置
+
+# 是否启用扭蛋
+enabled: true
+
+# 方块绑定展示实体设置
+display-entity:
+  # 是否启用展示实体
+  enabled: true
+  # 缩放比例 (默认 0.8)
+  scale: 0.8
+  # 初始Y轴旋转角度（度，默认 45）
+  rotation-y: 45
+  # 是否朝向玩家 (true=朝向玩家, false=固定方向)
+  face-player: false
+  # 是否启用悬浮动画
+  floating-animation: true
+  # 悬浮动画幅度（格，默认 0.1）
+  float-amplitude: 0.1
+  # 悬浮动画速度（默认 1.0）
+  float-speed: 1.0
+  # 展示实体高度偏移（格，默认 1.5）
+  height-offset: 1.5
+  # 动画更新周期（tick，默认 3）
+  animation-period: 3
+  # 视图范围（格，默认 32）
+  view-range: 32
+  # 阴影半径（默认 0.3）
+  shadow-radius: 0.3
+  # 阴影强度（默认 0.3）
+  shadow-strength: 0.3
+  # 是否发光（默认 false）
+  glowing: false
+  # 发光颜色（可选，格式: "RRGGBB" 或 "#RRGGBB"，不设置则使用默认白色）
+  # 示例: "FF0000" = 红色, "00FF00" = 绿色, "0000FF" = 蓝色
+  glow-color: null
+  # 解绑时清理范围（格，默认 2.0）
+  # 解绑方块时会删除Y轴 0 到 cleanup-range 范围内的所有 TextDisplay 实体
+  cleanup-range: 4.0
+  # 粒子效果配置
+  particle-effect:
+    # 效果类型: NONE, STAR_RING, MAGIC_RUNE, RAINBOW_HALO, FLAME_AURA, FROST_CRYSTAL, LOVE_BUBBLE
+    type: LOVE_BUBBLE
+    # 粒子密度 (每周期生成的粒子数，默认 3)
+    density: 3
+    # 效果半径 (格，默认 1.2)
+    radius: 1.2
+    # 效果速度 (默认 1.0)
+    speed: 1.0
+    # 自定义颜色 (可选，格式: "RRGGBB" 或 "#RRGGBB")
+    # 不设置则使用预设颜色
+    color: null
+
+
+collections:
+  pink_collection:
+    name: "<light_purple>绯樱套装收集奖励"
+    description: "收集绯樱套装的所有物品以获得奖励！"
+    icon: "pink_pack:wings"
+    slot: 0
+    requires:
+      - "pinksuite:pink_pack_sword"
+      - "pinksuite:pink_pack_scythe"
+      - "pinksuite:pink_pack_hammer"
+      - "pinksuite:pink_pack_axe"
+      - "pinksuite:pink_pack_hoe"
+      - "pinksuite:pink_pack_pickaxe"
+      - "pinksuite:pink_pack_shovel"
+    reward:
+      item: "pink_pack:wings"
+      amount: 1
+      commands:
+        - "bc msg &f恭喜玩家 &b{player} &f集齐了 &d[绯樱套装] &f的所有物品！获得奖励：&a&l[绯樱之翼]&f！ -server all"
+      give-item: true
+    repeatable: true

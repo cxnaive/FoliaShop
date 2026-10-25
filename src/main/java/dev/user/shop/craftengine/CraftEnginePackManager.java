@@ -3,8 +3,10 @@ package dev.user.shop.craftengine;
 import dev.user.shop.FoliaShopPlugin;
 import dev.user.shop.gacha.CraftEnginePackPool;
 import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
-import net.momirealms.craftengine.core.item.CustomItem;
-import net.momirealms.craftengine.core.item.ItemSettings;
+import net.momirealms.craftengine.bukkit.item.BukkitItemDefinition;
+import net.momirealms.craftengine.core.item.ItemBuildContext;
+import net.momirealms.craftengine.core.item.ItemDefinition;
+import net.momirealms.craftengine.core.item.setting.ItemSettings;
 import net.momirealms.craftengine.core.util.Key;
 import org.bukkit.inventory.ItemStack;
 
@@ -46,28 +48,28 @@ public class CraftEnginePackManager {
         }
     }
 
-    /** 预览用：池中一件物品的信息（含 CustomItem 便于预览构造展示） */
+    /** 预览用：池中一件物品的信息（含 ItemDefinition 便于预览构造展示） */
     public static class PoolEntryInfo {
         public final String key;
         public final double probability;
-        public final CustomItem<ItemStack> customItem;
+        public final ItemDefinition definition;
 
-        public PoolEntryInfo(String key, double probability, CustomItem<ItemStack> customItem) {
+        public PoolEntryInfo(String key, double probability, ItemDefinition definition) {
             this.key = key;
             this.probability = probability;
-            this.customItem = customItem;
+            this.definition = definition;
         }
     }
 
     /** 池中一件物品（过滤后 + 权重） */
     private static class PoolEntry {
         final Key key;
-        final CustomItem<ItemStack> customItem;
+        final ItemDefinition definition;
         final double weight;
 
-        PoolEntry(Key key, CustomItem<ItemStack> customItem, double weight) {
+        PoolEntry(Key key, ItemDefinition definition, double weight) {
             this.key = key;
-            this.customItem = customItem;
+            this.definition = definition;
             this.weight = weight;
         }
     }
@@ -95,7 +97,7 @@ public class CraftEnginePackManager {
                     break;
                 }
             }
-            ItemStack stack = chosen.customItem.buildItemStack(pool.getAmount());
+            ItemStack stack = buildItem(chosen.definition, pool.getAmount());
             if (stack == null) return null;
             return new DrawnItem(stack, chosen.key.asString(), chosen.weight / total);
         } catch (Throwable e) {
@@ -116,7 +118,7 @@ public class CraftEnginePackManager {
             for (PoolEntry pe : entries) total += pe.weight;
             if (total <= 0) return info;
             for (PoolEntry pe : entries) {
-                info.add(new PoolEntryInfo(pe.key.asString(), pe.weight / total, pe.customItem));
+                info.add(new PoolEntryInfo(pe.key.asString(), pe.weight / total, pe.definition));
             }
         } catch (Throwable e) {
             plugin.getLogger().warning("获取 CE 池信息失败: " + e.getMessage());
@@ -135,7 +137,7 @@ public class CraftEnginePackManager {
             int n = Math.min(count, entries.size());
             for (int i = 0; i < n; i++) {
                 try {
-                    ItemStack stack = entries.get(i).customItem.buildItemStack(pool.getAmount());
+                    ItemStack stack = buildItem(entries.get(i).definition, pool.getAmount());
                     if (stack != null) result.add(stack);
                 } catch (Throwable ignored) {
                     // 跳过单个构造失败的物品
@@ -168,7 +170,7 @@ public class CraftEnginePackManager {
      */
     private List<PoolEntry> buildPool(CraftEnginePackPool pool) {
         List<PoolEntry> result = new ArrayList<>();
-        Map<Key, CustomItem<ItemStack>> all;
+        Map<Key, ItemDefinition> all;
         try {
             all = CraftEngineItems.loadedItems();
         } catch (Throwable e) {
@@ -189,7 +191,7 @@ public class CraftEnginePackManager {
         boolean useItems = !itemSet.isEmpty();
         boolean useTags = !tagSet.isEmpty();
 
-        for (Map.Entry<Key, CustomItem<ItemStack>> e : all.entrySet()) {
+        for (Map.Entry<Key, ItemDefinition> e : all.entrySet()) {
             Key k = e.getKey();
             String keyStr = k.asString();
             if (excludeSet.contains(keyStr)) continue;
@@ -220,6 +222,24 @@ public class CraftEnginePackManager {
             result.add(new PoolEntry(k, e.getValue(), w));
         }
         return result;
+    }
+
+    /**
+     * 从物品定义构造 Bukkit ItemStack（新版 CE：CustomItem 已重构为 ItemDefinition，
+     * 需向下转型为 BukkitItemDefinition 才能拿到 Bukkit 物品）
+     */
+    private ItemStack buildItem(ItemDefinition definition, int amount) {
+        if (definition instanceof BukkitItemDefinition bukkitDef) {
+            return bukkitDef.buildBukkitItem(ItemBuildContext.empty(), amount);
+        }
+        return null;
+    }
+
+    /**
+     * 供外部（预览 GUI）构造单个展示物品；定义不是 Bukkit 实现或构造失败时返回 null
+     */
+    public ItemStack buildPreviewItem(ItemDefinition definition) {
+        return buildItem(definition, 1);
     }
 
     /** 解析 "ns:value" 为 Key；无冒号则返回 null（CE tag/物品 key 必须带命名空间） */

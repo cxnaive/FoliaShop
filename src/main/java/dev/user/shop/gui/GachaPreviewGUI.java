@@ -259,7 +259,7 @@ public class GachaPreviewGUI extends AbstractGUI {
                 CraftEnginePackManager.PoolEntryInfo info = entries.get(i);
                 ItemStack display = null;
                 try {
-                    display = info.customItem.buildItemStack(1);
+                    display = plugin.getCraftEnginePackManager().buildPreviewItem(info.definition);
                 } catch (Throwable ignored) {
                     // 跳过构造失败的物品
                 }

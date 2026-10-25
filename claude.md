@@ -136,12 +136,12 @@
 按钮数量：4-6个，根据分页和出售系统启用状态自动调整
 
 ## 技术栈
-- Java 21
-- Folia API 1.21.11
-- CraftEngine Bukkit 0.0.67
+- Java 25
+- Folia API 26.2.build.7-beta
+- CraftEngine Bukkit 26.7
 - HikariCP 6.2.1
 - H2 / MySQL
-- NBT-API 2.15.5
+- NBT-API 2.16.1
 
 ## 依赖说明
 - **XConomy**: 硬依赖，经济系统

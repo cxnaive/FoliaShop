@@ -1,7 +1,7 @@
 # FoliaShop - 高版本Folia/Paper系统商店与扭蛋插件
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Folia](https://img.shields.io/badge/Folia-1.21+-blue.svg)](https://github.com/PaperMC/Folia)
+[![Folia](https://img.shields.io/badge/Folia-26.2-blue.svg)](https://github.com/PaperMC/Folia)
 
 一个专为 [Folia/Paper](https://github.com/PaperMC/Folia) 服务端设计的系统商店和扭蛋插件，支持原版物品和 [CraftEngine](https://github.com/Momirealms/CraftEngine) 自定义物品。
 
@@ -54,9 +54,10 @@
 ### 必需插件（硬依赖）
 | 插件 | 版本 | 用途 |
 |------|------|------|
-| Folia | 1.21+ | 服务端核心 |
+| Folia/Paper | 26.2（Java 25） | 服务端核心 |
 | XConomy | 2.25+ | 经济系统 |
-| CraftEngine | 0.0.67+ | 自定义物品系统 |
+| CraftEngine | 26.7 | 自定义物品系统 |
+| NBT-API（NBTAPI） | 2.16.1 | NBT 组件操作与物品序列化 |
 
 ### 可选插件（软依赖）
 | 插件 | 版本 | 用途 |
@@ -65,7 +66,7 @@
 
 ## 🚀 安装
 
-1. 下载最新版本的 `folia_shop-1.2.1.jar`
+1. 下载最新版本的 `folia_shop-1.4.0.jar`
 2. 将 JAR 文件放入服务器的 `plugins` 文件夹
 3. 重启服务器或加载插件
 4. 编辑 `plugins/FoliaShop/config.yml` 配置数据库连接
@@ -511,7 +512,7 @@ machines:
 ./gradlew shadowJar
 ```
 
-构建后的 JAR 文件位于 `build/libs/folia_shop-1.2.1.jar`
+构建需要 JDK 25，构建后的 JAR 文件位于 `build/libs/folia_shop-1.4.0.jar`。
 
 ## 🏗️ 项目结构
 
@@ -545,9 +546,10 @@ folia_shop/
 
 | 依赖 | 版本 | 来源 |
 |------|------|------|
-| Folia-API | 1.21.11-R0.1-SNAPSHOT | PaperMC |
+| Folia-API | 26.2.build.7-beta | PaperMC |
 | XConomyAPI | 2.25.1 | JitPack |
-| CraftEngine | 0.0.67 | Momirealms |
+| CraftEngine | 26.7 | Momirealms |
+| NBT-API | 2.16.1 | CodeMC |
 | PlayerPoints | 3.2+ | GitHub |
 | HikariCP | 6.2.1 | Maven Central |
 | H2 | 2.3.232 | Maven Central |

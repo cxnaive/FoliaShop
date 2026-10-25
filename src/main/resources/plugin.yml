@@ -1,7 +1,7 @@
 name: FoliaShop
 version: ${version}
 main: dev.user.shop.FoliaShopPlugin
-api-version: '1.21'
+api-version: '26.2'
 folia-supported: true
 
 libraries:
@@ -11,7 +11,7 @@ libraries:
   - com.google.code.gson:gson:2.12.1
   - org.lz4:lz4-java:1.8.0
 
-depend: [XConomy, CraftEngine]
+depend: [XConomy, CraftEngine, NBTAPI]
 softdepend: [PlayerPoints, Aiyatsbus]
 
 commands:
